@@ -1,0 +1,8 @@
+{
+  "trip": {"start": "2027-05-12", "end": "2027-05-16"},
+  "hotels": [{"id": "hotel", "check_in": "2027-05-12", "check_out": "2027-05-16", "confirmed": true}],
+  "events": [
+    {"id": "visita", "start": "2027-05-13T09:00:00+01:00", "end": "2027-05-13T12:00:00+01:00", "confirmed": true},
+    {"id": "aeropuerto", "start": "2027-05-16T07:30:00+01:00", "end": "2027-05-16T08:30:00+01:00", "must_arrive_by": "2027-05-16T11:00:00+01:00", "required_margin_minutes": 120, "confirmed": true}
+  ]
+}

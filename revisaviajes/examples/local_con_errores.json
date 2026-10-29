@@ -1,0 +1,12 @@
+{
+  "trip": {"start": "2027-05-12", "end": "2027-05-16"},
+  "hotels": [
+    {"id": "hotel_lisboa", "planned_start": "2027-05-12", "check_in": "2027-05-13", "check_out": "2027-05-14", "confirmed": true},
+    {"id": "hotel_sintra", "check_in": "2027-05-14", "check_out": "2027-05-16", "confirmed": true}
+  ],
+  "events": [
+    {"id": "visita", "start": "2027-05-13T09:00:00+01:00", "end": "2027-05-13T13:00:00+01:00", "confirmed": true},
+    {"id": "traslado", "start": "2027-05-13T12:30:00+01:00", "end": "2027-05-13T13:15:00+01:00", "confirmed": true},
+    {"id": "taller", "start": "2027-05-15T11:00:00+01:00", "end": "2027-05-15T13:00:00+01:00", "confirmed": null}
+  ]
+}

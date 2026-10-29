@@ -1,3 +1,7 @@
+# RevisaViajes · modo local por defecto
+
+Empieza por [LOCAL.md](LOCAL.md): revisión determinista sin clave, sin red ni coste de API.
+
 # RevisaViajes · prototipo 0.1
 
 Revisor documental por lotes. Python 3.11+. Ejecuta automáticamente descarga/lectura, extracción, revisión IA, verificación literal de citas y exportación JSON/HTML. No es un agente desplegado ni un servicio en segundo plano.
@@ -26,8 +30,8 @@ La extracción NO ejecuta una revisión IA. `demo/informe.html` contiene solo el
 Configura OPENAI_API_KEY en tu entorno local mediante tu gestor de secretos. No pegues la clave en el chat ni en el código. El procesamiento envía el texto extraído a OpenAI y requiere cuenta API y saldo independientes de esta entrega. Selecciona un modelo de tu cuenta compatible con Responses y Structured Outputs.
 
 ```bash
-python agent.py itinerario.pdf hotel.docx reservas.txt --model TU_MODELO --out resultado
-python agent.py 'https://ejemplo.com/itinerario.pdf' reservas.txt --model TU_MODELO --out resultado
+python agent.py --api itinerario.pdf hotel.docx reservas.txt --model TU_MODELO --out resultado
+python agent.py --api 'https://ejemplo.com/itinerario.pdf' reservas.txt --model TU_MODELO --out resultado
 ```
 
 Abre `resultado/informe.html`. El JSON incluye fuentes (nombre y hash), cobertura, evidencias, limitaciones y consumo de tokens observado. Si repites una carpeta de salida se sobrescriben sus informes; usa una carpeta distinta por expediente.

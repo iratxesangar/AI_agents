@@ -1,5 +1,15 @@
 # AI Agents
 
+## Inicio recomendado: sin API
+
+```bash
+cd revisaviajes
+python agent.py examples/local_con_errores.json --local --out revision_local
+```
+
+Consulta [el modo local](revisaviajes/LOCAL.md). No requiere clave ni conexión. La API ahora solo se activa con --api explícito.
+
+
 Proyectos de agentes IA y automatización documental.
 
 ## RevisaViajes
@@ -24,7 +34,7 @@ La prueba de extracción es local y no requiere una clave. La revisión IA requi
 Desde la carpeta `revisaviajes`, introduce la clave mediante entrada oculta:
 
 ```bash
-python -c "import getpass,os,subprocess,sys; env=os.environ.copy(); env['OPENAI_API_KEY']=getpass.getpass('Clave OpenAI: '); subprocess.run([sys.executable,'agent.py','inputs/itinerario.pdf','--model','TU_MODELO','--out','revision_001'],env=env,check=True)"
+python -c "import getpass,os,subprocess,sys; env=os.environ.copy(); env['OPENAI_API_KEY']=getpass.getpass('Clave OpenAI: '); subprocess.run([sys.executable,'agent.py','--api','inputs/itinerario.pdf','--model','TU_MODELO','--out','revision_001'],env=env,check=True)"
 ```
 
 Sustituye TU_MODELO por un modelo disponible compatible con Responses y Structured Outputs. Crea `inputs` y guarda allí tus documentos. El comando transmite texto a la API y puede generar costes. No guarda la clave en disco. No se cargan archivos .env automáticamente.

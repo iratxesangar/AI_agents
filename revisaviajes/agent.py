@@ -145,12 +145,20 @@ def render(report):
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('sources',nargs='+'); ap.add_argument('--model',default=os.getenv('OPENAI_MODEL'))
+    ap.add_argument('--local',action='store_true',help='Revisión JSON offline, modo por defecto'); ap.add_argument('--api',action='store_true',help='Autorizar uso de API de pago');
     ap.add_argument('--out',default='resultado'); ap.add_argument('--extract-only',action='store_true')
     args=ap.parse_args(); start=time.monotonic()
     try:
-        docs=load_sources(args.sources)
+        if args.api and (args.local or args.extract_only): raise ValueError('--api no puede combinarse con --local o --extract-only')
+        if not args.api and not args.extract_only:
+            if len(args.sources)!=1: raise ValueError('Modo local: aporta un único expediente JSON')
+            from local_review import load_local
+            report=load_local(args.sources[0])
+        elif args.extract_only:
+            docs=load_sources(args.sources)
         if args.extract_only: report={'mode':'extraction_only','documents':docs,'warning':'No se ha ejecutado revisión IA'}
-        else:
+        elif args.api:
+            docs=load_sources(args.sources)
             if not args.model: raise ValueError('Indica --model con un modelo habilitado en tu cuenta')
             report=review(docs,args.model)
             report['sources']=[{k:v for k,v in d.items() if k!='text'} for d in docs]
