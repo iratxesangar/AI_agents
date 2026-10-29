@@ -1,0 +1,9 @@
+EXPEDIENTE FICTICIO. Todos los horarios son locales.
+ITINERARIO: Lisboa, 12-16 mayo 2027. Dos adultos. Hotel Mirador noches del 12 y 13. Visita guiada el 13 de 09:00 a 13:00. Traslado a Sintra el 13 a las 12:30. Casa del Bosque noches del 14 y 15. Taller gastronómico el 15 de 11:00 a 13:00. Palacio el 14 de 10:00 a 12:00. Vuelo el 16 a las 11:00.
+HOTEL MIRADOR: entrada confirmada el 13, salida el 14.
+CASA DEL BOSQUE: entrada confirmada el 14, salida el 16.
+VISITA: confirmada el 13, 09:00-13:00, final Plaza del Río.
+TRASLADO: confirmado el 13, 12:30, desde Hotel Mirador, duración 45 minutos.
+PALACIO: confirmado el 15, 10:00-12:00.
+AEROPUERTO: traslado confirmado el 16 a las 08:00. Duración y antelación requerida no aportadas.
+No se adjunta confirmación del taller.
