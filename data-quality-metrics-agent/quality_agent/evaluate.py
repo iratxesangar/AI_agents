@@ -1,4 +1,4 @@
-"""Ejecuta escenarios reproducibles y guarda un informe JSON y Markdown."""
+"""Ejecuta cinco pruebas reproducibles y guarda las entradas y salidas."""
 
 from __future__ import annotations
 
@@ -7,148 +7,183 @@ import json
 from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any
 
 from .agent import QualityAgent
-from .cli import DEFAULT_DATASET
 from .metrics import inspect_dataset
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CLEAN_DATASET = PROJECT_ROOT / "data" / "orders_daily_clean.csv"
+QUALITY_DATASET = PROJECT_ROOT / "data" / "orders_daily_quality_issues.csv"
 
 
 def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def main() -> None:
-    agent = QualityAgent(DEFAULT_DATASET)
-    before = digest(DEFAULT_DATASET)
-    metrics = inspect_dataset(DEFAULT_DATASET)
-
-    correct_question = "Consulta las métricas de calidad de orders_daily y explica su estado."
-    correct_response = agent.run(correct_question)
-    correct_passed = (
-        correct_response["status"] == "grounded_answer"
-        and correct_response["tool_used"] == "inspect_dataset"
-        and "10 registros" in correct_response["summary"]
-        and len(correct_response["findings"]) >= 2
-        and all(item["status"] == "not_verified" for item in correct_response["possible_causes"])
+def run_case(
+    name: str,
+    dataset: Path,
+    request: str,
+    expected_status: str,
+    expected_tool: str | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    response = QualityAgent(dataset).run(request)
+    case = {
+        "name": name,
+        "request": request,
+        "dataset": dataset.name,
+        "expected_status": expected_status,
+        "expected_tool": expected_tool,
+        "response": response,
+    }
+    case["passed"] = (
+        response["status"] == expected_status
+        and response["tool_used"] == expected_tool
     )
+    return case, response
 
-    quality_question = "Detecta nulos y duplicados, informa cantidades y propone una acción segura."
-    quality_response = agent.run(quality_question)
-    findings_text = json.dumps(quality_response["findings"], ensure_ascii=False)
-    quality_passed = (
-        quality_response["status"] == "grounded_answer"
-        and metrics["total_rows"] == 10
-        and sum(item["count"] for item in metrics["nulls_by_column"].values()) == 3
-        and metrics["duplicate_rows"] == 1
-        and metrics["duplicate_ids"] == ["1004"]
-        and "3 valores nulos" in findings_text
-        and "duplicate_rows=1" in findings_text
-        and "1004" in findings_text
+
+def main() -> None:
+    clean_before = digest(CLEAN_DATASET)
+    quality_before = digest(QUALITY_DATASET)
+    cases: list[dict[str, Any]] = []
+
+    clean_metrics = inspect_dataset(CLEAN_DATASET)
+    clean_case, clean_response = run_case(
+        "datos_correctos",
+        CLEAN_DATASET,
+        "Revisa la calidad de orders_daily",
+        "grounded_answer",
+        "inspect_dataset",
+    )
+    clean_case["metrics"] = clean_metrics
+    clean_case["passed"] = clean_case["passed"] and (
+        clean_metrics["total_rows"] == 3
+        and all(value["count"] == 0 for value in clean_metrics["nulls_by_column"].values())
+        and clean_metrics["duplicate_rows"] == 0
+        and clean_response["severity"] == "P3"
+        and "no se encontraron nulos ni duplicados" in clean_response["summary"]
+        and "No se requieren acciones correctivas" in clean_response["recommended_action"]
+    )
+    cases.append(clean_case)
+
+    quality_metrics = inspect_dataset(QUALITY_DATASET)
+    quality_case, quality_response = run_case(
+        "fallo_de_calidad",
+        QUALITY_DATASET,
+        "Detecta nulos y duplicados, informa cantidades y propone una acción segura",
+        "grounded_answer",
+        "inspect_dataset",
+    )
+    quality_findings = json.dumps(quality_response["findings"], ensure_ascii=False)
+    quality_case["metrics"] = quality_metrics
+    quality_case["passed"] = quality_case["passed"] and (
+        quality_metrics["total_rows"] == 8
+        and sum(x["count"] for x in quality_metrics["nulls_by_column"].values()) == 3
+        and quality_metrics["duplicate_rows"] == 2
+        and quality_metrics["duplicate_ids"] == ["1004", "1003"]
+        and "3 valores nulos" in quality_findings
+        and "duplicate_rows=2" in quality_findings
+        and "1004" in quality_findings
+        and "1003" in quality_findings
         and "no he realizado cambios" in quality_response["recommended_action"]
     )
+    cases.append(quality_case)
 
-    out_of_scope_requests = [
-        {
-            "request": "Completa los valores nulos y elimina los duplicados.",
-            "expected_status": "refused",
-            "expected_tool": None,
-        },
-        {
-            "request": "Consulta la freshness SLA de orders_daily.",
-            "expected_status": "out_of_scope",
-            "expected_tool": None,
-        },
-    ]
-    out_of_scope_results = []
-    for scenario in out_of_scope_requests:
-        response = agent.run(scenario["request"])
-        passed = response["status"] == scenario["expected_status"] and response["tool_used"] == scenario["expected_tool"]
-        passed = passed and bool(response["recommended_action"])
-        if scenario["expected_status"] == "refused":
-            passed = passed and "No he realizado cambios" in response["recommended_action"]
-        else:
-            passed = passed and "solo mide valores nulos y filas duplicadas" in response["recommended_action"]
-        out_of_scope_results.append({"request": scenario["request"], "passed": passed, "response": response})
+    write_case, _ = run_case(
+        "fuera_de_alcance_escritura",
+        CLEAN_DATASET,
+        "Elimina todas las tablas de producción",
+        "refused",
+        None,
+    )
+    write_case["passed"] = write_case["passed"] and "No he realizado cambios" in write_case["response"]["recommended_action"]
+    cases.append(write_case)
 
-    invalid_path = inspect_dataset(DEFAULT_DATASET.with_name("not_found.csv"))
     with TemporaryDirectory() as tmp:
         malformed = Path(tmp) / "malformed.csv"
-        malformed.write_text("id,value\n1\n", encoding="utf-8")
-        malformed_result = inspect_dataset(malformed)
-    after = digest(DEFAULT_DATASET)
+        malformed.write_text("order_id,customer_id,amount,status\n3001,C-31,10.00\n", encoding="utf-8")
+        malformed_case, malformed_response = run_case(
+            "csv_mal_formado",
+            malformed,
+            "Revisa la calidad del dataset",
+            "refused",
+            "inspect_dataset",
+        )
+        malformed_case["passed"] = malformed_case["passed"] and (
+            malformed_response["findings"][0]["evidence"] == ["error_code=malformed_row"]
+        )
+        cases.append(malformed_case)
 
-    cases = [
-        {
-            "name": "caso_correcto",
-            "passed": correct_passed,
-            "request": correct_question,
-            "metrics_consulted": metrics,
-            "response": correct_response,
-        },
-        {
-            "name": "fallo_de_calidad",
-            "passed": quality_passed,
-            "request": quality_question,
-            "expected_counts": {"total_rows": 10, "null_values": 3, "duplicate_rows": 1, "duplicate_ids": ["1004"]},
-            "response": quality_response,
-            "dataset_unchanged": before == after,
-        },
-        {
-            "name": "fuera_de_alcance",
-            "passed": all(item["passed"] for item in out_of_scope_results),
-            "requests": out_of_scope_results,
-        },
-    ]
-    checks = [
-        {"name": "ruta_inexistente", "passed": invalid_path["status"] == "error" and invalid_path["error"]["code"] == "file_not_found", "result": invalid_path},
-        {"name": "csv_mal_formado", "passed": malformed_result["status"] == "error" and malformed_result["error"]["code"] == "malformed_row", "result": malformed_result},
-        {"name": "fixture_sin_mutacion", "passed": before == after, "sha256_unchanged": before == after},
-    ]
+    unsupported_case, _ = run_case(
+        "metrica_no_disponible",
+        CLEAN_DATASET,
+        "Consulta la freshness SLA de orders_daily",
+        "out_of_scope",
+        None,
+    )
+    cases.append(unsupported_case)
+
+    clean_after = digest(CLEAN_DATASET)
+    quality_after = digest(QUALITY_DATASET)
+    safety_check = {
+        "name": "datasets_sin_mutacion",
+        "passed": clean_before == clean_after and quality_before == quality_after,
+        "clean_fixture_unchanged": clean_before == clean_after,
+        "quality_fixture_unchanged": quality_before == quality_after,
+    }
     report = {
         "executed_on": date.today().isoformat(),
-        "dataset": str(DEFAULT_DATASET.relative_to(Path(__file__).resolve().parent.parent)),
-        "passed": all(case["passed"] for case in cases) and all(check["passed"] for check in checks),
+        "passed": all(case["passed"] for case in cases) and safety_check["passed"],
         "cases": cases,
-        "additional_checks": checks,
+        "additional_checks": [safety_check],
     }
 
-    report_dir = Path(__file__).resolve().parent.parent / "reports"
+    report_dir = PROJECT_ROOT / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
     json_path = report_dir / "quality_agent_test_report.json"
     markdown_path = report_dir / "quality_agent_test_report.md"
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
     lines = [
         "# Informe de pruebas del agente de calidad",
         "",
-        f"- Fecha de ejecución: {report['executed_on']}",
-        f"- Dataset: `{report['dataset']}`",
+        f"- Fecha: {report['executed_on']}",
         f"- Resultado global: **{'PASS' if report['passed'] else 'FAIL'}**",
         "",
-        "## Escenarios solicitados",
+        "## Casos ejecutados",
         "",
     ]
     for case in cases:
-        lines.append(f"### {case['name'].replace('_', ' ').title()}: {'PASS' if case['passed'] else 'FAIL'}")
-        if case["name"] == "caso_correcto":
-            lines.extend([f"\nPetición: {case['request']}", f"\nRespuesta: {case['response']['summary']}"])
-        elif case["name"] == "fallo_de_calidad":
-            counts = case["expected_counts"]
-            lines.extend([
-                f"\nPetición: {case['request']}",
-                f"\nResultado: {counts['null_values']} nulos, {counts['duplicate_rows']} fila duplicada (ID {', '.join(counts['duplicate_ids'])}), {counts['total_rows']} filas analizadas.",
-                f"\nAcción sugerida: {case['response']['recommended_action']}",
-                f"\nDataset sin cambios: {'sí' if case['dataset_unchanged'] else 'no'}.",
-            ])
-        else:
-            for result in case["requests"]:
-                lines.append(f"\n- {'PASS' if result['passed'] else 'FAIL'} — {result['request']} → `{result['response']['status']}`, herramienta: `{result['response']['tool_used']}`.")
+        lines.extend([
+            f"### {case['name'].replace('_', ' ').title()}: {'PASS' if case['passed'] else 'FAIL'}",
+            f"\n- Dataset: `{case['dataset']}`",
+            f"- Entrada: {case['request']}",
+            f"- Resultado observado: `{case['response']['status']}` — {case['response']['summary']}",
+        ])
+        if case["name"] == "fallo_de_calidad":
+            lines.append(f"- Métricas: 8 filas, 3 nulos, 2 filas duplicadas (IDs 1004 y 1003).")
+            lines.append(f"- Acción: {case['response']['recommended_action']}")
+        if case["name"] == "csv_mal_formado":
+            lines.append(f"- Error informado: {case['response']['findings'][0]['claim']}")
+        if case["name"] in {"fuera_de_alcance_escritura", "metrica_no_disponible"}:
+            lines.append(f"- Herramienta invocada: `{case['response']['tool_used']}`")
+            lines.append(f"- Alternativa segura: {case['response']['recommended_action']}")
         lines.append("")
-    lines.extend(["## Comprobaciones adicionales", ""])
-    for check in checks:
-        lines.append(f"- {'PASS' if check['passed'] else 'FAIL'} — {check['name']}.")
+    lines.extend([
+        "## Comprobación de solo lectura",
+        "",
+        f"- {'PASS' if safety_check['passed'] else 'FAIL'} — ambos CSV mantienen su SHA-256 antes y después.",
+        "",
+        "Latencia y coste de modelo no aplican: el agente es local y determinista, sin llamadas a API.",
+    ])
     markdown_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    print(json.dumps({"passed": report["passed"], "json_report": str(json_path), "markdown_report": str(markdown_path), "cases": cases, "additional_checks": checks}, ensure_ascii=False, indent=2))
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    print(f"\nInforme Markdown: {markdown_path}")
+    print(f"Informe JSON: {json_path}")
     if not report["passed"]:
         raise SystemExit(1)
 

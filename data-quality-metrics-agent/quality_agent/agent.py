@@ -116,7 +116,7 @@ class QualityAgent:
             recommended = "Como siguiente paso, " + "; además, ".join(actions) + ". Son propuestas para revisión manual; no he realizado cambios."
             summary = f"{metrics['dataset']}: {sum(null_columns.values())} valor(es) nulo(s) y {duplicate_count} fila(s) duplicada(s) en {total} registros."
         else:
-            recommended = "Mantén las validaciones de calidad y revisa las métricas en la siguiente ejecución."
+            recommended = "No se requieren acciones correctivas; no he realizado cambios."
             summary = f"{metrics['dataset']}: no se encontraron nulos ni duplicados exactos en {total} registros."
 
         return {
