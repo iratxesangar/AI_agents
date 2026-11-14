@@ -219,6 +219,8 @@ def _build_decision(
             )
         if invalid_metrics:
             evidence.append("Valores inválidos en las métricas recibidas.")
+        if not metrics_complete:
+            evidence.append("Evidencia incompleta; solicitud de métricas faltantes.")
     else:
         evidence.append("Evidencia de calidad pendiente: no se recibieron métricas.")
         if "read_quality_metrics" in failed_tools:
