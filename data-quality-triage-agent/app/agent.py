@@ -74,8 +74,30 @@ def _guarded_read(
         trace_calls.append(call)
 
 
+def severity_result_signals(
+    metrics: dict[str, Any] | None,
+    freshness: dict[str, Any] | None,
+) -> bool:
+    """Indica si las herramientas observaron al menos una señal accionable."""
+    return bool(
+        metrics
+        and (
+            metrics.get("null_count", 0)
+            or metrics.get("duplicate_count", 0)
+            or metrics.get("relevant_schema_regression", False)
+            or metrics.get("strong_volume_drop", False)
+            or metrics.get("moderate_degradation", False)
+        )
+    ) or bool(
+        freshness
+        and (
+            freshness.get("critical_flow_unavailable", False)
+            or freshness.get("delay_seconds", 0) > 0
+        )
+    )
+
+
 def _build_decision(
-    request: str,
     metadata: dict[str, Any] | None,
     metrics: dict[str, Any] | None,
     freshness: dict[str, Any] | None,
@@ -128,12 +150,11 @@ def _build_decision(
         moderate_degradation=bool(
             (metrics or {}).get("moderate_degradation", False)
         ),
-        actionable=bool(severity_result_signals(metrics, freshness)),
+        actionable=severity_result_signals(metrics, freshness),
         evidence_sufficient=all_sources_available,
     )
     severity = severity_result.severity.value
 
-    hypotheses = []
     has_quality_signal = bool(
         metrics
         and (
@@ -142,6 +163,7 @@ def _build_decision(
             or metrics.get("volume_change_pct", 0)
         )
     )
+    hypotheses = []
     if has_quality_signal or (freshness and freshness.get("delay_seconds", 0)):
         hypotheses.append(Hypothesis(
             description=(
@@ -183,35 +205,12 @@ def _build_decision(
     )
     return TriageDecision(
         severity=severity,
-        summary=f"{summary} Solicitud: {request}",
+        summary=summary,
         evidence=evidence + list(severity_result.reasons),
         hypotheses=hypotheses,
         recommended_actions=actions,
         needs_human_approval=(severity == "P1"),
         confidence=confidence,
-    )
-
-
-def severity_result_signals(
-    metrics: dict[str, Any] | None,
-    freshness: dict[str, Any] | None,
-) -> bool:
-    """Indica si las herramientas observaron al menos una señal accionable."""
-    return bool(
-        metrics
-        and (
-            metrics.get("null_count", 0)
-            or metrics.get("duplicate_count", 0)
-            or metrics.get("relevant_schema_regression", False)
-            or metrics.get("strong_volume_drop", False)
-            or metrics.get("moderate_degradation", False)
-        )
-    ) or bool(
-        freshness
-        and (
-            freshness.get("critical_flow_unavailable", False)
-            or freshness.get("delay_seconds", 0) > 0
-        )
     )
 
 
@@ -228,7 +227,7 @@ def run_triage(
         for tool_name in TOOL_ORDER
     ]
     metadata, metrics, freshness = outputs
-    decision = _build_decision(request, metadata, metrics, freshness)
+    decision = _build_decision(metadata, metrics, freshness)
 
     trace = {
         "trace_id": trace_id,
