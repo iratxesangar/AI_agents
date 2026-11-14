@@ -13,7 +13,11 @@ La clasificación se implementa en `app/policy.py`; el prompt no es la fuente de
 
 Los límites son inclusivos. Si se cumplen varios criterios, prevalece la severidad más alta. El ratio de frescura solo se calcula cuando se conocen el retraso y un SLA positivo.
 
-Ejemplo de uso:
+## Instrucciones y guardrails
+
+Las reglas no negociables del agente están en `app/agent.py`. Incluyen consulta previa de metadatos y métricas, separación de hechos/hipótesis/recomendaciones, prohibición de llamadas de escritura o remediación, protección de datos sensibles y aprobación humana obligatoria para P1. También especifican validaciones antes y después de cada llamada a herramientas.
+
+## Ejemplo de clasificación
 
 ```python
 from app.policy import classify_severity
@@ -29,13 +33,13 @@ print(result.reasons)
 
 ## Estado actual
 
-La política de severidad ya es ejecutable. El resto de la estructura del agente y las métricas sigue siendo inicial: no hay todavía agente funcional, métricas calculadas ni evaluaciones implementadas.
+La política de severidad y las instrucciones del agente están definidas. El resto de la estructura y las métricas siguen siendo iniciales: no hay todavía herramientas de lectura funcionales, métricas calculadas ni evaluaciones implementadas.
 
 ## Estructura
 
-- `app/agent.py`: coordinación del agente (pendiente).
+- `app/agent.py`: instrucciones del agente y guardrails para llamadas a herramientas.
 - `app/tools.py`: herramientas de lectura de métricas (pendientes).
-- `app/schemas.py`: contratos de entrada y salida (pendientes).
+- `app/schemas.py`: contratos Pydantic de entrada y salida.
 - `app/policy.py`: clasificación determinista de severidad.
 - `fixtures/`: datos sintéticos, actualmente vacíos.
 - `evals/`: casos y ejecutor, actualmente sin implementar.
