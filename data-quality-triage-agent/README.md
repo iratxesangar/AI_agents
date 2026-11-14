@@ -53,17 +53,16 @@ Consulta el [scorecard](evals/behavioral_scorecard.md) y el [informe de evaluaci
 
 ## Reglas y seguridad
 
-La política explícita de severidad vive en `app/policy.py`; las instrucciones del agente están en `app/instructions.py`. `TriageDecision` es un contrato Pydantic estricto, limita confidencias a 0–1 y rechaza decisiones P1 sin aprobación humana.
+La política explícita de severidad vive en `app/policy.py`. Las instrucciones del agente están como `AGENT_INSTRUCTIONS` en `app/agent.py`. `TriageDecision` es un contrato Pydantic estricto, limita confidencias a 0–1 y rechaza decisiones P1 sin aprobación humana.
 
 El agente utiliza cuatro herramientas de solo lectura: metadatos, métricas de calidad, estado de frescura y despliegues recientes. No tiene herramientas para modificar datos, relanzar pipelines ni crear incidencias.
 
 ## Estructura
 
-- `app/agent.py`: orquestación, triaje y trazas.
+- `app/agent.py`: orquestación, instrucciones, triaje y trazas.
 - `app/tools.py`: herramientas de lectura y allowlist de datasets.
 - `app/schemas.py`: contratos Pydantic de entrada y salida.
 - `app/policy.py`: reglas deterministas P1/P2/P3/INFO.
-- `app/instructions.py`: instrucciones y contraejemplo contra prompt injection.
 - `fixtures/`: datos sintéticos y alerta de ejemplo.
 - `evals/cases.json`: casos de evaluación independientes.
 - `evals/run_evals.py`: métricas y comparación Antes/Después.
