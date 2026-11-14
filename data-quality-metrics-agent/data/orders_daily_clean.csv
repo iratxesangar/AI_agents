@@ -1,0 +1,4 @@
+order_id,customer_id,amount,status
+2001,C-21,10.00,paid
+2002,C-22,20.00,pending
+2003,C-23,30.00,paid

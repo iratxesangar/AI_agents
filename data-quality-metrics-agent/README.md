@@ -26,20 +26,20 @@ Para ejecutar la batería reproducible de evaluación:
 python -m quality_agent.evaluate
 ```
 
-La evaluación guarda las entradas, respuestas completas y comprobaciones en `reports/quality_agent_test_report.json`; `reports/quality_agent_test_report.md` ofrece un resumen legible.
+La evaluación guarda entradas, respuestas completas y comprobaciones en `reports/quality_agent_test_report.json`; `reports/quality_agent_test_report.md` ofrece un resumen legible. Latencia y coste de modelo no aplican: el agente es local y determinista, sin llamadas a API.
 
 ## Diseño
 
-1. `data/orders_daily.csv` contiene 10 filas sintéticas. `data/README.md` documenta cada defecto introducido: nulos en `amount`, `status` y `customer_id`, y una fila duplicada exacta (`order_id=1004`, registros 4 y 9).
+1. `data/orders_daily.csv` contiene 10 filas sintéticas. `data/README.md` documenta sus defectos y los dos fixtures de evaluación: uno limpio y otro con tres nulos y dos filas duplicadas exactas.
 2. `quality_agent.metrics` calcula métricas leyendo el CSV; devuelve el número de filas, nulos por columna y filas duplicadas exactas.
 3. `quality_agent.agent` enruta las solicitudes de calidad a esa herramienta y construye una respuesta respaldada por sus resultados. Solicitudes de modificación o fuera de alcance se rechazan sin consultar herramientas.
-4. `quality_agent.evaluate` ejecuta casos positivos, de límites y de abstención, y comprueba forma, evidencia, severidad, abstención y ausencia de mutación del fixture.
+4. `quality_agent.evaluate` ejecuta cinco escenarios (datos limpios, fallo de calidad, solicitud de escritura, CSV mal formado y métrica no disponible), registra entradas y respuestas, y comprueba que los fixtures no cambian.
 
 El agente local usa reglas explícitas para que la práctica funcione sin credenciales ni servicios externos. La interfaz `QualityAgent.run()` puede sustituirse por una política de modelo con llamada a herramientas; las restricciones críticas (herramienta de solo lectura, esquema de salida y casos de evaluación) permanecen verificables localmente.
 
 ## Garantía de solo lectura
 
-El agente solo dispone de la función `inspect_dataset` para consultar el CSV. Esta abre la ruta con el modo de lectura (`open("r")`) y no contiene llamadas para escribir, borrar, renombrar o actualizar archivos. Las acciones correctivas se devuelven como texto para revisión humana; nunca se ejecutan. La evaluación compara el SHA-256 del CSV antes y después para verificar que permanece intacto.
+El agente solo dispone de la función `inspect_dataset` para consultar el CSV. Esta abre la ruta con el modo de lectura (`open("r")`) y no contiene llamadas para escribir, borrar, renombrar o actualizar archivos. Las acciones correctivas se devuelven como texto para revisión humana; nunca se ejecutan. La evaluación compara el SHA-256 de los CSV de prueba antes y después para verificar que permanecen intactos.
 
 ## Entregables
 
