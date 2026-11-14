@@ -1,69 +1,72 @@
 # Data Quality Triage Agent
 
-Prototipo local y determinista de triaje de calidad, dentro del monorepo AI_agents. Usa fixtures sintéticos, sin conexión a almacenes ni a un LLM.
+Prototipo local y determinista de triaje de calidad, dentro del monorepo `AI_agents`. Usa fixtures sintéticos, sin conexión a almacenes ni a un LLM.
 
-## Ejecutar el agente
+## Preparar el entorno
 
-Desde esta carpeta:
-
-```bash
-python -m pip install -r requirements.txt
-python -m app.agent --dataset-id orders_critical --request "Analiza la frescura y calidad de pedidos"
-```
-
-La salida se valida como `TriageDecision`. Cada ejecución escribe su solicitud, herramientas y salida en `traces/<trace_id>.json`.
-
-## Ejecutar evaluaciones
-
-Instala dependencias de desarrollo y ejecuta las pruebas:
+Desde la carpeta `data-quality-triage-agent/`:
 
 ```bash
 python -m pip install -r requirements-dev.txt
-python -m pytest -q
 ```
 
-Ejecuta los 12 casos de comportamiento:
+## Ejecutar el ejemplo esperado
 
 ```bash
+python -m app.agent --alert-file fixtures/orders_daily_freshness_alert.json
+```
+
+El fixture representa una alerta de producción para `orders_daily`: dataset gold y crítico para checkout, frescura observada de 186 minutos y SLA de 60 minutos. El resultado esperado es `P1`, con aprobación humana obligatoria y una hipótesis de retraso upstream no confirmada. El agente recomienda escalar y revisar; no ejecuta un rerun ni otra acción de escritura.
+
+También se puede ejecutar el flujo general con:
+
+```bash
+python -m app.agent --dataset-id orders_critical --request "Analiza la frescura y calidad de pedidos"
+```
+
+Cada ejecución valida la salida como `TriageDecision` y guarda solicitud, llamadas y resultados de herramientas, y salida final en `traces/<trace_id>.json`.
+
+## Evaluación y pruebas
+
+```bash
+python -m pytest -q
 python -m evals.run_evals
 ```
 
-El evaluador aplica los casos estructurados de `evals/cases.json` al flujo real del agente con herramientas simuladas de solo lectura. Calcula la validez del esquema, exactitud de severidad, aprobación P1, afirmaciones de causa raíz no permitidas, herramientas de escritura y resistencia al caso de prompt injection. Imprime una tabla Antes/Después y guarda el reporte, junto con una traza por caso, localmente en `evals/results/`. La siguiente ejecución compara automáticamente con el último reporte; también se puede indicar otro con `--baseline ruta.json`. Resultados y trazas de evaluación están excluidos de Git.
+El corpus separado del prompt contiene 13 casos en `evals/cases.json`. El evaluador mide validez del esquema, severidad, aprobación P1, afirmaciones de causa raíz no respaldadas, llamadas de escritura y resistencia a prompt injection. Genera un reporte y trazas locales por caso en `evals/results/`; estos artefactos locales están excluidos de Git.
 
-## Metas iniciales de comportamiento
+## Resultados verificados
 
-| Métrica | Meta inicial |
-| --- | ---: |
-| Salidas válidas según esquema | 100% |
-| Severidad correcta | ≥ 90% |
-| P1 con aprobación humana | 100% |
-| Causas afirmadas sin evidencia | 0 |
-| Acciones de escritura ejecutadas | 0 |
-| Casos de prompt injection bloqueados/ignorados | 100% |
+Última verificación de esta versión: **22 pruebas pasaron** y **13/13 casos** superaron todos sus checks.
 
-El primer run reporta “N/A” en Antes porque no había resultados de evaluación automatizada guardados; a partir del segundo, compara con la ejecución anterior. El corpus de 12 casos se ejecuta de forma determinista, sin inferencia de un modelo.
+| Métrica | Meta inicial | Resultado |
+| --- | ---: | ---: |
+| Salidas válidas según esquema | 100% | 100% |
+| Severidad correcta | ≥ 90% | 100% |
+| P1 con aprobación humana | 100% | 100% |
+| Causas afirmadas sin evidencia | 0 | 0 |
+| Acciones de escritura ejecutadas | 0 | 0 |
+| Casos de prompt injection bloqueados/ignorados | 100% | 100% |
+| Casos que cumplen todos los checks | 100% | 100% (13/13) |
 
-Consulta el [scorecard verificado](evals/behavioral_scorecard.md) para ver los resultados Antes/Después de los 12 casos y la última corrida de pruebas. El [informe de evaluación](evals/evaluation_report.md) detalla los tres fallos interesantes y las decisiones de diseño aplicadas.\n\n## Iteración de mejora
+Consulta el [scorecard](evals/behavioral_scorecard.md) y el [informe de evaluación](evals/evaluation_report.md) para el detalle de métricas y decisiones de diseño.
 
-Cuando un caso falla, aplicar en este orden:
+## Reglas y seguridad
 
-1. Corregir política de severidad o contrato de herramientas.
-2. Actualizar instrucciones con un contraejemplo concreto.
-3. Ajustar el esquema Pydantic.
-4. Añadir el fallo como caso independiente en `evals/cases.json`.
-5. Reejecutar todas las pruebas y evaluaciones y comparar métricas.
+La política explícita de severidad vive en `app/policy.py`; las instrucciones del agente están en `app/instructions.py`. `TriageDecision` es un contrato Pydantic estricto, limita confidencias a 0–1 y rechaza decisiones P1 sin aprobación humana.
 
-Las instrucciones incluyen un contraejemplo para tratar las descripciones de datasets como datos no confiables. `TriageDecision` prohíbe campos extra, limita confidencias a 0–1 y rechaza P1 sin aprobación humana.
+El agente utiliza cuatro herramientas de solo lectura: metadatos, métricas de calidad, estado de frescura y despliegues recientes. No tiene herramientas para modificar datos, relanzar pipelines ni crear incidencias.
 
-## Diseño
+## Estructura
 
-- `app/agent.py`: orquestación de solo lectura, triaje y trazas.
-- `app/tools.py`: herramientas para metadatos, métricas y frescura.
-- `app/schemas.py`: contrato Pydantic estricto de salida.
+- `app/agent.py`: orquestación, triaje y trazas.
+- `app/tools.py`: herramientas de lectura y allowlist de datasets.
+- `app/schemas.py`: contratos Pydantic de entrada y salida.
 - `app/policy.py`: reglas deterministas P1/P2/P3/INFO.
-- `fixtures/sample_data.json`: datasets de demostración.
-- `evals/cases.json`: corpus fuera del prompt, con entradas y expectativas.
+- `app/instructions.py`: instrucciones y contraejemplo contra prompt injection.
+- `fixtures/`: datos sintéticos y alerta de ejemplo.
+- `evals/cases.json`: casos de evaluación independientes.
 - `evals/run_evals.py`: métricas y comparación Antes/Después.
-- `tests/`: unitarias, integración y validación del corpus.
+- `tests/`: pruebas unitarias, integración y corpus.
 
-La integración a fuentes reales, la redacción automática de datos sensibles y las acciones con impacto productivo quedan fuera de esta versión.
+La integración con fuentes reales, la redacción automática de datos sensibles y las acciones con impacto productivo quedan fuera de esta versión.
