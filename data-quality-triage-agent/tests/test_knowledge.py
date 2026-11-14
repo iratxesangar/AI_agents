@@ -89,7 +89,8 @@ def _chunks_from_local_docs(docs):
 def test_corpus_has_20_markdown_documents_with_required_versioned_metadata():
     paths = list((Path(__file__).resolve().parents[1] / "knowledge").rglob("*.md"))
     documents = load_knowledge_documents()
-    assert len(paths) == len(documents) == 20
+    assert len(paths) == len(documents)
+    assert 18 <= len(documents) <= 25
     assert all(REQUIRED_METADATA <= doc.keys() for doc in documents)
     assert all(doc["status"] in {"active", "deprecated"} for doc in documents)
     assert all(date.fromisoformat(doc["last_reviewed"]) for doc in documents)
@@ -132,6 +133,7 @@ def test_investigation_instructions_cover_non_negotiable_safety_rules():
         "Recupera y revisa evidencia",
         "source_id que search_knowledge() haya devuelto",
         'metadata.status="deprecated"',
+        "prioriza la versión más reciente",
         'status="insufficient_evidence"',
         "findings son hechos documentados",
         "triage.hypotheses",

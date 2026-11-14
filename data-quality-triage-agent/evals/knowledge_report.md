@@ -2,7 +2,7 @@
 
 ## Resultado
 
-La última ejecución offline pasó **38/38 pruebas**, **13/13 casos** del triaje de la práctica 1 y **5/5 casos** de investigación documental. La suite documental no invoca el LLM: prueba la recuperación local simulada, el filtrado por metadatos y tiempo, el contrato Pydantic, la validación de citas y la abstención.
+La última ejecución offline pasó **40/40 pruebas**, **13/13 casos** del triaje de la práctica 1, **5/5 casos** de investigación documental y **10/10 casos** de desarrollo de recuperación. La ejecución retenida final pasó **5/6 (83,33%)**. Las suites documentales no invocan el LLM: comprueban recuperación local simulada, filtros, contrato Pydantic, citas y abstención.
 
 | Métrica documental | Resultado |
 |---|---:|
@@ -10,6 +10,10 @@ La última ejecución offline pasó **38/38 pruebas**, **13/13 casos** del triaj
 | Citas a documentos no recuperados aceptadas | 0 |
 | Categorías requeridas ausentes pero respuesta aceptada | 0 |
 | Herramientas de escritura disponibles | 0 |
+| Recuperación en desarrollo | 10/10 (100%) |
+| Recuperación en holdout | 5/6 (83,33%) |
+
+El único fallo retenido fue `H03`: la búsqueda recuperó catálogo, historial y ambos runbooks activos, pero no encontró el procedimiento de escalado. El resultado se abstuvo, conservó P1 y aprobación humana, y no presentó citas; según el caso, faltaba evidencia obligatoria para una respuesta grounded. Se registró como límite de generalización sin ajustar el sistema contra el holdout.
 
 ## Casos incluidos
 
@@ -21,13 +25,17 @@ La última ejecución offline pasó **38/38 pruebas**, **13/13 casos** del triaj
 
 ## Decisiones de diseño
 
-1. **Corpus pequeño, ficticio y versionado.** Hay 20 documentos Markdown, todos con `dataset`, `domain`, `environment`, `version`, `last_reviewed` y `status`. Se incluyen documentos activos y distractores obsoletos para comprobar filtros.
+1. **Corpus pequeño, ficticio y versionado.** Hay 22 documentos Markdown, todos con `dataset`, `domain`, `environment`, `version`, `last_reviewed` y `status`. Se incluyen documentos activos y distractores obsoletos para comprobar filtros.
 2. **File Search como integración de runtime.** El agente construye filtros antes de buscar y activa la inclusión de resultados para poder inspeccionar las fuentes recuperadas. El script de carga está preparado, pero no se ejecuta sin una clave y configuración API de la usuaria.
 3. **Contrato tipado de recuperación.** `search_knowledge()` entrega `RetrievedChunk` con `source_id`, `title`, `content`, `score` y `metadata`.
 4. **Salida centrada en evidencia.** `InvestigationResult` expresa `grounded_answer` o `insufficient_evidence`; cada `Finding` separa `claim` de sus IDs en `sources`. El resultado conserva la severidad determinista y la aprobación P1.
 5. **Citas verificadas tras la salida del modelo.** Cada referencia debe apuntar a un chunk devuelto y su excerpt debe coincidir literalmente con el contenido. La validación rechaza una respuesta respaldada si falta alguna categoría requerida o aparece un `source_id` no recuperado.
 6. **Abstención como salida segura.** La ausencia de configuración, error del proveedor, fuente insuficiente o cita inválida no elimina el triaje determinista, pero impide presentar afirmaciones documentales sin soporte.
 7. **Solo lectura y trazabilidad.** File Search es la única herramienta documental. Filtros, resultado, salida del investigador y fallo se guardan en la traza local; no existe herramienta de escritura o remediación.
+
+La nueva evaluación de 16 casos está separada en 10 de desarrollo y 6 retenidos. `run_retrieval_evals` solo ejecuta desarrollo por defecto y guarda una traza JSON por caso con consulta, filtros, fragmentos puntuados, salida estructurada y resultado de los checks. El harness usa respuestas de referencia sin LLM; la partición retenida se reserva para la validación final y sus métricas no son una evaluación semántica del agente.
+
+La ejecución final del conjunto retenido fue 5/6. H03 detectó correctamente que no podía responder con toda la evidencia requerida y se abstuvo. El fallo del check refleja una recuperación incompleta de la fuente de escalado. Esta observación se conserva para orientar una iteración futura, pero no se usó para modificar la versión evaluada.
 
 ## Alcance y límites
 
@@ -41,6 +49,7 @@ Desde `data-quality-triage-agent/`:
 python -m pytest -q
 python -m evals.run_evals
 python -m evals.run_knowledge_evals
+python -m evals.run_retrieval_evals
 ```
 
 Para una prueba gestionada, configura `OPENAI_API_KEY`, ejecuta `python -m scripts.create_knowledge_store`, exporta el `OPENAI_VECTOR_STORE_ID` que imprime y lanza el CLI con `--knowledge`. La carga y las consultas live no forman parte de las métricas reportadas aquí.

@@ -20,7 +20,7 @@ python -m app.agent --alert-file fixtures/orders_daily_freshness_alert.json
 
 ## Práctica 2: investigación con fuentes
 
-El corpus versionado contiene **20 documentos Markdown ficticios** en `knowledge/`: catálogo de datasets, runbooks, propietarios, historial de despliegues, procedimientos de escalado y documentos distractores. Cada documento incluye `dataset`, `domain`, `environment`, `version`, `last_reviewed` y `status` (`active` o `deprecated`), además de identificadores y tipo de fuente para filtrar y citar.
+El corpus versionado contiene **22 documentos Markdown ficticios** en `knowledge/`: catálogo de datasets, runbooks, propietarios, historial de despliegues, procedimientos de escalado y documentos distractores. Cada documento incluye `dataset`, `domain`, `environment`, `version`, `last_reviewed` y `status` (`active` o `deprecated`), además de identificadores y tipo de fuente para filtrar y citar.
 
 ### Configurar el File Search gestionado
 
@@ -57,11 +57,16 @@ Cada ejecución guarda solicitud, llamadas de lectura, filtros, resultados de Fi
 python -m pytest -q
 python -m evals.run_evals
 python -m evals.run_knowledge_evals
+python -m evals.run_retrieval_evals
 ```
 
-La suite de triaje conserva 13 casos independientes del prompt. La suite documental mantiene cinco casos de evaluación para cobertura de fuentes, dataset desconocido, entorno no aplicable, esquema documentado y corte temporal. Esta suite prueba filtros, validador de citas y abstención con recuperación local simulada; no llama al LLM ni afirma medir la calidad semántica de una respuesta en vivo.
+La suite de triaje conserva 13 casos independientes del prompt. La suite documental mantiene cinco casos de evaluación para cobertura de fuentes, dataset desconocido, entorno no aplicable, esquema documentado y corte temporal. La suite nueva define **10 casos de desarrollo** y **6 casos retenidos** en `evals/retrieval_cases.json`; por defecto ejecuta solo desarrollo. Ejecuta `python -m evals.run_retrieval_evals --split holdout` una sola vez después de congelar los ajustes, sin usar sus resultados para retocar la implementación.
 
-Última ejecución offline: **38 pruebas**, **13/13 casos de triaje** y **5/5 casos documentales** pasaron. La ejecución real del modelo y File Search requiere API propia y no está incluida en estos resultados.
+Cada ejecución de recuperación guarda consulta, filtros, fragmentos y puntuaciones, respuesta Pydantic y checks por caso en `evals/results/retrieval_traces/<run_id>/`. El resumen queda en `evals/results/retrieval_<split>_latest.json`. El harness offline usa salidas de referencia, no invoca el LLM y no mide la calidad semántica de una respuesta live. Los casos y documentos de este repositorio son sintéticos.
+
+Para añadir casos inspirados en un flujo real, crea localmente `evals/private/retrieval_cases.json` con la misma estructura de `retrieval_cases.json` y ejecútalos con `python -m evals.run_retrieval_evals --cases evals/private/retrieval_cases.json --split development`. `evals/private/` está excluido de Git. No incluyas datos personales, secretos ni texto interno identificable; anonimiza los casos antes de guardarlos y mantenlos fuera de cualquier commit.
+
+Última ejecución offline: **40 pruebas**, **13/13 casos de triaje**, **5/5 casos documentales** y **10/10 casos de desarrollo de recuperación** pasaron. La única ejecución final retenida pasó **5/6**: H03 se abstuvo porque la búsqueda no recuperó el documento de escalado requerido. El resultado queda registrado sin ajustar el código contra el holdout. La ejecución real del modelo y File Search requiere API propia y no está incluida en estos resultados.
 
 | Métrica | Meta inicial | Resultado offline |
 |---|---:|---:|
@@ -72,6 +77,8 @@ La suite de triaje conserva 13 casos independientes del prompt. La suite documen
 | Acciones de escritura ejecutadas | 0 | 0 |
 | Casos de prompt injection bloqueados/ignorados | 100% | 100% |
 | Recuperación/cita verificable o abstención correcta | 100% | 100% (5/5) |
+| Casos de desarrollo de recuperación | 100% | 100% (10/10) |
+| Casos retenidos de recuperación | Diagnóstico | 83,33% (5/6); H03 sin fuente de escalado |
 
 ## Estructura
 
@@ -81,9 +88,11 @@ La suite de triaje conserva 13 casos independientes del prompt. La suite documen
 - `app/knowledge.py`: carga y validación del corpus, filtros offline y guardrail de grounding.
 - `app/knowledge_agent.py`: OpenAI Agents SDK, File Search, filtros y resultados inspeccionables.
 - `scripts/create_knowledge_store.py`: carga del corpus ficticio a OpenAI Vector Store.
-- `knowledge/`: 20 documentos Markdown versionados.
+- `knowledge/`: 22 documentos Markdown versionados.
 - `evals/knowledge_cases.json`: evaluación independiente de las instrucciones del agente.
 - `evals/run_knowledge_evals.py`: evaluación offline de filtros y grounding.
+- `evals/retrieval_cases.json`: 10 casos de desarrollo y 6 casos retenidos.
+- `evals/run_retrieval_evals.py`: traza por caso y evaluación de recuperación; por defecto solo ejecuta desarrollo.
 - `traces/`: trazas JSON locales, ignoradas por Git.
 
 El límite principal de esta práctica es que la suite offline valida filtros y citas, pero no demuestra que el texto citado implique semánticamente cada afirmación. Antes de confiar en recomendaciones de una ejecución real, revisa las trazas y añade evaluaciones live con juicio humano. No hay conexión a un almacén productivo ni herramientas de escritura.

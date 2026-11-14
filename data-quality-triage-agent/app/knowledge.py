@@ -201,8 +201,16 @@ def validate_grounding(
     retrieved_chunks: list[RetrievedChunk],
     *,
     triage: TriageDecision | None = None,
+    required_source_types: Iterable[str] | None = None,
 ) -> InvestigationResult:
     """Acepta citas únicamente si apuntan a chunks devueltos por search_knowledge."""
+    required_types = (
+        set(REQUIRED_SOURCE_TYPES)
+        if required_source_types is None
+        else set(required_source_types)
+    )
+    if required_types - ALLOWED_SOURCE_TYPES:
+        raise ValueError("required_source_types contiene tipos no permitidos")
     if triage and (
         investigation.severity != triage.severity
         or investigation.needs_human_approval != triage.needs_human_approval
@@ -218,8 +226,8 @@ def validate_grounding(
     covered_types = {
         chunk.metadata.get("source_type") for chunk in retrieved_chunks
     }
-    if not REQUIRED_SOURCE_TYPES <= covered_types:
-        missing = sorted(REQUIRED_SOURCE_TYPES - covered_types)
+    if not required_types <= covered_types:
+        missing = sorted(required_types - covered_types)
         return abstain(
             "Faltan fuentes requeridas para una investigación auditable: "
             + ", ".join(missing) + ".",
@@ -251,7 +259,7 @@ def validate_grounding(
         by_id[citation.source_id].metadata.get("source_type")
         for citation in investigation.citations
     }
-    if not REQUIRED_SOURCE_TYPES <= cited_types:
+    if not required_types <= cited_types:
         return abstain(
             "Las citas no cubren todas las categorías requeridas.", triage=triage
         )

@@ -37,7 +37,7 @@ class SourceCitation(StrictOutputModel):
     source_id: str = Field(min_length=1)
     title: str = Field(min_length=1)
     source_type: Literal[
-        "runbook", "catalog", "deployment_history", "escalation"
+        "runbook", "catalog", "deployment_history", "escalation", "ownership"
     ]
     uri: str = Field(min_length=1)
     excerpt: str = Field(min_length=1)

@@ -52,3 +52,5 @@ jobs:
         working-directory: data-quality-triage-agent
       - run: python -m evals.run_knowledge_evals
         working-directory: data-quality-triage-agent
+      - run: python -m evals.run_retrieval_evals --split development
+        working-directory: data-quality-triage-agent

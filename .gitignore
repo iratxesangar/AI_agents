@@ -22,3 +22,6 @@ data-quality-triage-agent/traces/
 
 # Resultados y trazas locales de evaluación
 data-quality-triage-agent/evals/results/
+
+# Casos de evaluación privados derivados del flujo real de trabajo
+data-quality-triage-agent/evals/private/

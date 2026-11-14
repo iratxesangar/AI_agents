@@ -15,7 +15,7 @@ La integración no despliega servicios ni mueve bases de datos o tareas programa
 ```bash
 (cd revisaviajes && python -m unittest discover -s tests)
 (cd radar-data-ai && npm run build && npm run validate)
-(cd data-quality-triage-agent && python -m pytest -q && python -m evals.run_evals && python -m evals.run_knowledge_evals)
+(cd data-quality-triage-agent && python -m pytest -q && python -m evals.run_evals && python -m evals.run_knowledge_evals && python -m evals.run_retrieval_evals)
 ```
 
 GitHub Actions mantiene las pruebas de RevisaViajes, valida el artefacto de Radar y ejecuta las suites offline de las prácticas 1 y 2 del agente de calidad. La prueba live del modelo no se ejecuta en CI ni necesita una clave API.
