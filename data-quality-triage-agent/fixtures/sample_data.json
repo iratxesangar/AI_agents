@@ -2,8 +2,9 @@
   "orders_critical": {
     "metadata": {
       "dataset_id": "orders_critical",
-      "name": "Pedidos diarios",
-      "is_critical": true
+      "name": "Pedidos críticos",
+      "is_critical": true,
+      "owner": "data-platform"
     },
     "quality_metrics": {
       "null_count": 12,
@@ -17,34 +18,46 @@
       "delay_seconds": 10800,
       "sla_seconds": 3600,
       "critical_flow_unavailable": false
-    }
+    },
+    "recent_deployments": []
   },
   "orders_daily": {
     "metadata": {
       "dataset_id": "orders_daily",
       "name": "Pedidos diarios",
-      "is_critical": false,
-      "owner": "order-data"
+      "is_critical": true,
+      "tier": "gold",
+      "owner": "data-platform",
+      "consumers": ["checkout"],
+      "sla_minutes": 60,
+      "pipeline": "orders_pipeline"
     },
     "quality_metrics": {
       "null_count": 0,
       "duplicate_count": 0,
+      "null_rate_pct": 0.0,
+      "rows_checked": 120000,
+      "complete": true,
       "relevant_schema_regression": false,
       "strong_volume_drop": false,
       "moderate_degradation": false,
       "volume_change_pct": 0.0
     },
     "freshness": {
-      "delay_seconds": 0,
+      "delay_minutes": 186,
+      "sla_minutes": 60,
+      "delay_seconds": 11160,
       "sla_seconds": 3600,
       "critical_flow_unavailable": false
-    }
+    },
+    "recent_deployments": []
   },
   "support_events": {
     "metadata": {
       "dataset_id": "support_events",
       "name": "Eventos de soporte",
-      "is_critical": false
+      "is_critical": false,
+      "owner": "support-data"
     },
     "quality_metrics": {
       "null_count": 15,
@@ -58,6 +71,7 @@
       "delay_seconds": 5400,
       "sla_seconds": 3600,
       "critical_flow_unavailable": false
-    }
+    },
+    "recent_deployments": []
   }
 }
