@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from app.schemas import KnowledgeInvestigation
+from app.schemas import KnowledgeInvestigation, RetrievedChunk
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
 REQUIRED_METADATA = frozenset({
@@ -187,13 +187,15 @@ def abstain(reason: str) -> KnowledgeInvestigation:
 
 def validate_grounding(
     investigation: KnowledgeInvestigation,
-    retrieved_documents: list[dict[str, Any]],
+    retrieved_chunks: list[RetrievedChunk],
 ) -> KnowledgeInvestigation:
-    """Valida fuente, metadatos y fragmento literal antes de aceptar la respuesta."""
+    """Acepta citas únicamente si apuntan a chunks devueltos por search_knowledge."""
     if investigation.status == "abstained":
         return investigation
-    by_id = {doc["source_id"]: doc for doc in retrieved_documents}
-    covered_types = {doc["source_type"] for doc in retrieved_documents}
+    by_id = {chunk.source_id: chunk for chunk in retrieved_chunks}
+    covered_types = {
+        chunk.metadata.get("source_type") for chunk in retrieved_chunks
+    }
     if not REQUIRED_SOURCE_TYPES <= covered_types:
         missing = sorted(REQUIRED_SOURCE_TYPES - covered_types)
         return abstain(
@@ -205,17 +207,17 @@ def validate_grounding(
         if source is None:
             return abstain("La respuesta citó una fuente que no se recuperó.")
         if (
-            citation.title != source["title"]
-            or citation.source_type != source["source_type"]
-            or citation.uri != source["uri"]
-            or citation.excerpt not in source["content"]
+            citation.title != source.title
+            or citation.source_type != source.metadata.get("source_type")
+            or citation.uri != source.metadata.get("uri")
+            or citation.excerpt not in source.content
         ):
             return abstain("No se pudo verificar una cita contra el resultado recuperado.")
     for statement in (*investigation.findings, *investigation.recommendations):
         if not set(statement.citation_ids) <= set(by_id):
             return abstain("Un hallazgo o recomendación cita una fuente no recuperada.")
     cited_types = {
-        by_id[citation.source_id]["source_type"]
+        by_id[citation.source_id].metadata.get("source_type")
         for citation in investigation.citations
     }
     if not REQUIRED_SOURCE_TYPES <= cited_types:

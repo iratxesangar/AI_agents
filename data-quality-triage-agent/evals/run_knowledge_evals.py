@@ -10,7 +10,9 @@ from app.knowledge import (
     search_knowledge_documents,
     validate_grounding,
 )
-from app.schemas import GroundedStatement, KnowledgeInvestigation, SourceCitation
+from app.schemas import (
+    GroundedStatement, KnowledgeInvestigation, RetrievedChunk, SourceCitation,
+)
 
 EVAL_DIR = Path(__file__).resolve().parent
 CASES_PATH = EVAL_DIR / "knowledge_cases.json"
@@ -47,6 +49,17 @@ def _stub_structured_output(docs, missing):
     )
 
 
+def _chunks_from_documents(docs: list[dict]) -> list[RetrievedChunk]:
+    """Adapta la recuperación offline al mismo contrato que File Search."""
+    return [RetrievedChunk(
+        source_id=doc["source_id"],
+        title=doc["title"],
+        content=doc["content"],
+        score=float(doc["score"]),
+        metadata={**doc, "source_type": doc["source_type"], "uri": doc["uri"]},
+    ) for doc in docs]
+
+
 def run() -> dict:
     corpus = json.loads(CASES_PATH.read_text(encoding="utf-8"))
     results = []
@@ -60,7 +73,7 @@ def run() -> dict:
         found_types = {doc["source_type"] for doc in docs}
         missing = REQUIRED_SOURCE_TYPES - found_types
         candidate = _stub_structured_output(docs, missing)
-        verified = validate_grounding(candidate, docs)
+        verified = validate_grounding(candidate, _chunks_from_documents(docs))
         actual_status = verified.status
         expected_status = case["expected_status"]
         source_pass = (

@@ -15,13 +15,14 @@ from app.knowledge import (
     validate_grounding,
 )
 from app.knowledge_agent import (
-    _extract_file_search_results,
     build_metadata_filters,
     investigate_with_documents,
+    search_knowledge,
 )
 from app.schemas import (
     GroundedStatement,
     KnowledgeInvestigation,
+    RetrievedChunk,
     SourceCitation,
     TriageDecision,
 )
@@ -68,6 +69,20 @@ def _supported_investigation(docs):
         )],
         citations=citations,
     )
+
+
+def _chunks_from_local_docs(docs):
+    return [RetrievedChunk(
+        source_id=doc["source_id"],
+        title=doc["title"],
+        content=doc["content"],
+        score=0.8,
+        metadata={
+            **doc,
+            "source_type": doc["source_type"],
+            "uri": doc["uri"],
+        },
+    ) for doc in docs]
 
 
 def test_corpus_has_20_markdown_documents_with_required_versioned_metadata():
@@ -122,6 +137,11 @@ def test_supported_investigation_requires_findings_and_citations():
         KnowledgeInvestigation(status="supported", summary="Sin fuentes")
 
 
+def test_retrieved_chunk_contract_requires_all_retrieval_fields():
+    with pytest.raises(ValidationError):
+        RetrievedChunk(source_id="CAT-1", title="Catálogo", content="Texto", score=0.8)
+
+
 def test_abstained_investigation_cannot_include_uncited_claims():
     with pytest.raises(ValidationError, match="no puede presentar"):
         KnowledgeInvestigation(
@@ -133,18 +153,29 @@ def test_abstained_investigation_cannot_include_uncited_claims():
 
 def test_grounding_requires_all_source_types_and_verifiable_quotes():
     docs = _order_docs()
+    chunks = _chunks_from_local_docs(docs)
     investigation = _supported_investigation(docs)
-    assert validate_grounding(investigation, docs).status == "supported"
+    assert validate_grounding(investigation, chunks).status == "supported"
     incomplete = [doc for doc in docs if doc["source_type"] != "escalation"]
-    rejected = validate_grounding(investigation, incomplete)
+    rejected = validate_grounding(investigation, _chunks_from_local_docs(incomplete))
     assert rejected.status == "abstained"
     assert "escalation" in rejected.abstention_reason
     wrong_quote = investigation.model_copy(deep=True)
     wrong_quote.citations[0].excerpt = "Texto que no existe en la fuente"
-    assert validate_grounding(wrong_quote, docs).status == "abstained"
+    assert validate_grounding(wrong_quote, chunks).status == "abstained"
 
 
-def test_raw_file_search_result_parser_keeps_citable_text_and_metadata():
+def test_grounding_blocks_citation_to_source_not_returned_by_search_knowledge():
+    docs = _order_docs()
+    chunks = _chunks_from_local_docs(docs)
+    fabricated = _supported_investigation(docs)
+    fabricated.citations[0].source_id = "DOC-NOT-RETURNED"
+    result = validate_grounding(fabricated, chunks)
+    assert result.status == "abstained"
+    assert "no se recuperó" in result.abstention_reason
+
+
+def test_search_knowledge_returns_typed_chunks_with_citable_text_and_metadata():
     run = SimpleNamespace(raw_responses=[SimpleNamespace(output=[{
         "type": "file_search_call",
         "results": [{
@@ -156,9 +187,12 @@ def test_raw_file_search_result_parser_keeps_citable_text_and_metadata():
             },
         }],
     }])])
-    docs = _extract_file_search_results(run)
-    assert docs[0]["source_id"] == "CAT-ORDERS-001"
-    assert "SLA: 60 minutes." in docs[0]["content"]
+    chunks = search_knowledge(run)
+    assert isinstance(chunks[0], RetrievedChunk)
+    assert chunks[0].source_id == "CAT-ORDERS-001"
+    assert chunks[0].score == 0.8
+    assert chunks[0].metadata["source_type"] == "catalog"
+    assert "SLA: 60 minutes." in chunks[0].content
 
 
 def test_integrated_sdk_flow_uses_only_file_search_and_validates_output(monkeypatch):
@@ -223,6 +257,10 @@ def test_integrated_sdk_flow_uses_only_file_search_and_validates_output(monkeypa
     assert {citation.source_type for citation in investigation.citations} == REQUIRED_SOURCE_TYPES
     assert {call["tool"] for call in calls} == {"file_search", "knowledge_agent"}
     assert all(call["success"] for call in calls)
+    search_call = next(call for call in calls if call["tool"] == "file_search")
+    assert {"source_id", "title", "content", "score", "metadata"} <= set(
+        search_call["result"][0]
+    )
 
 
 def test_integrated_sdk_abstains_without_credentials_or_vector_store(monkeypatch):

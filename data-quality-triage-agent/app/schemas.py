@@ -1,6 +1,6 @@
 """Contratos estrictos de entrada y salida del agente de triaje."""
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -21,6 +21,16 @@ class AlertInput(StrictOutputModel):
 class Hypothesis(StrictOutputModel):
     description: str
     confidence: float = Field(ge=0, le=1)
+
+
+class RetrievedChunk(StrictOutputModel):
+    """Fragmento devuelto por la recuperación y permitido como fuente de cita."""
+
+    source_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    content: str = Field(min_length=1)
+    score: float
+    metadata: dict[str, Any]
 
 
 class SourceCitation(StrictOutputModel):
