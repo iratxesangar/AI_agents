@@ -1,0 +1,202 @@
+{
+  "executed_on": "2026-11-14",
+  "dataset": "data/orders_daily.csv",
+  "passed": true,
+  "cases": [
+    {
+      "name": "caso_correcto",
+      "passed": true,
+      "request": "Consulta las métricas de calidad de orders_daily y explica su estado.",
+      "metrics_consulted": {
+        "total_rows": 10,
+        "nulls_by_column": {
+          "order_id": {
+            "count": 0,
+            "percentage": 0.0
+          },
+          "customer_id": {
+            "count": 1,
+            "percentage": 10.0
+          },
+          "amount": {
+            "count": 1,
+            "percentage": 10.0
+          },
+          "status": {
+            "count": 1,
+            "percentage": 10.0
+          }
+        },
+        "duplicate_rows": 1,
+        "duplicate_ids": [
+          "1004"
+        ],
+        "status": "ok",
+        "dataset": "orders_daily",
+        "columns": [
+          "order_id",
+          "customer_id",
+          "amount",
+          "status"
+        ],
+        "key_columns": [
+          "order_id"
+        ],
+        "null_key_counts": {
+          "order_id": 0
+        }
+      },
+      "response": {
+        "status": "grounded_answer",
+        "severity": "P2",
+        "summary": "orders_daily: 3 valor(es) nulo(s) y 1 fila(s) duplicada(s) en 10 registros.",
+        "findings": [
+          {
+            "claim": "Se detectaron 3 valores nulos; desglose: customer_id: 1, amount: 1, status: 1.",
+            "evidence": [
+              "null_counts={'customer_id': 1, 'amount': 1, 'status': 1}",
+              "null_percentages={'customer_id': 10.0, 'amount': 10.0, 'status': 10.0}",
+              "total_rows=10"
+            ]
+          },
+          {
+            "claim": "Se detectaron 1 fila(s) duplicada(s) exacta(s).",
+            "evidence": [
+              "duplicate_rows=1",
+              "duplicate_ids=['1004']"
+            ]
+          }
+        ],
+        "possible_causes": [
+          {
+            "hypothesis": "Los campos vacíos podrían originarse en la captura, una fuente upstream o una transformación previa.",
+            "status": "not_verified"
+          },
+          {
+            "hypothesis": "Las filas repetidas podrían deberse a reintentos de ingesta o a duplicidad en el origen.",
+            "status": "not_verified"
+          }
+        ],
+        "recommended_action": "Como siguiente paso, rastrear el origen de los nulos y acordar una regla de validación o tratamiento con el responsable del dato; además, contrastar las filas repetidas con la clave de negocio y definir una regla de deduplicación revisada por una persona. Son propuestas para revisión manual; no he realizado cambios.",
+        "tool_used": "inspect_dataset"
+      }
+    },
+    {
+      "name": "fallo_de_calidad",
+      "passed": true,
+      "request": "Detecta nulos y duplicados, informa cantidades y propone una acción segura.",
+      "expected_counts": {
+        "total_rows": 10,
+        "null_values": 3,
+        "duplicate_rows": 1,
+        "duplicate_ids": [
+          "1004"
+        ]
+      },
+      "response": {
+        "status": "grounded_answer",
+        "severity": "P2",
+        "summary": "orders_daily: 3 valor(es) nulo(s) y 1 fila(s) duplicada(s) en 10 registros.",
+        "findings": [
+          {
+            "claim": "Se detectaron 3 valores nulos; desglose: customer_id: 1, amount: 1, status: 1.",
+            "evidence": [
+              "null_counts={'customer_id': 1, 'amount': 1, 'status': 1}",
+              "null_percentages={'customer_id': 10.0, 'amount': 10.0, 'status': 10.0}",
+              "total_rows=10"
+            ]
+          },
+          {
+            "claim": "Se detectaron 1 fila(s) duplicada(s) exacta(s).",
+            "evidence": [
+              "duplicate_rows=1",
+              "duplicate_ids=['1004']"
+            ]
+          }
+        ],
+        "possible_causes": [
+          {
+            "hypothesis": "Los campos vacíos podrían originarse en la captura, una fuente upstream o una transformación previa.",
+            "status": "not_verified"
+          },
+          {
+            "hypothesis": "Las filas repetidas podrían deberse a reintentos de ingesta o a duplicidad en el origen.",
+            "status": "not_verified"
+          }
+        ],
+        "recommended_action": "Como siguiente paso, rastrear el origen de los nulos y acordar una regla de validación o tratamiento con el responsable del dato; además, contrastar las filas repetidas con la clave de negocio y definir una regla de deduplicación revisada por una persona. Son propuestas para revisión manual; no he realizado cambios.",
+        "tool_used": "inspect_dataset"
+      },
+      "dataset_unchanged": true
+    },
+    {
+      "name": "fuera_de_alcance",
+      "passed": true,
+      "requests": [
+        {
+          "request": "Completa los valores nulos y elimina los duplicados.",
+          "passed": true,
+          "response": {
+            "status": "refused",
+            "severity": null,
+            "summary": "No puedo modificar, borrar, completar ni reparar datos.",
+            "findings": [],
+            "possible_causes": [],
+            "recommended_action": "Como alternativa segura, puedo consultar métricas de nulos y filas duplicadas y describir un procedimiento para que una persona lo revise y aplique manualmente. No he realizado cambios.",
+            "tool_used": null
+          }
+        },
+        {
+          "request": "Consulta la freshness SLA de orders_daily.",
+          "passed": true,
+          "response": {
+            "status": "out_of_scope",
+            "severity": null,
+            "summary": "No puedo calcular estas métricas con la herramienta disponible: freshness, sla.",
+            "findings": [],
+            "possible_causes": [],
+            "recommended_action": "La herramienta solo mide valores nulos y filas duplicadas exactas. Puedo consultar esas métricas o puedes aportar una fuente autorizada para las métricas solicitadas.",
+            "tool_used": null
+          }
+        }
+      ]
+    }
+  ],
+  "additional_checks": [
+    {
+      "name": "ruta_inexistente",
+      "passed": true,
+      "result": {
+        "total_rows": 0,
+        "nulls_by_column": {},
+        "duplicate_rows": 0,
+        "duplicate_ids": [],
+        "status": "error",
+        "error": {
+          "code": "file_not_found",
+          "message": "No existe el archivo: not_found.csv"
+        }
+      }
+    },
+    {
+      "name": "csv_mal_formado",
+      "passed": true,
+      "result": {
+        "total_rows": 0,
+        "nulls_by_column": {},
+        "duplicate_rows": 0,
+        "duplicate_ids": [],
+        "status": "error",
+        "error": {
+          "code": "malformed_row",
+          "message": "La fila física 2 tiene 1 campos; se esperaban 2."
+        }
+      }
+    },
+    {
+      "name": "fixture_sin_mutacion",
+      "passed": true,
+      "sha256_unchanged": true
+    }
+  ]
+}

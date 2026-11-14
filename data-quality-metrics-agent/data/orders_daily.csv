@@ -1,0 +1,11 @@
+order_id,customer_id,amount,status
+1001,C-01,24.50,paid
+1002,C-02,,paid
+1003,C-03,15.00,pending
+1004,C-04,42.75,paid
+1005,C-05,18.00,
+1006,C-06,31.20,paid
+1007,C-07,12.00,pending
+1008,C-08,9.99,paid
+1004,C-04,42.75,paid
+1009,,27.00,paid
