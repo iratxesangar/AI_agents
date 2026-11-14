@@ -1,0 +1,8 @@
+{
+  "dataset": "orders_daily",
+  "environment": "production",
+  "alert_type": "freshness",
+  "observed_value_minutes": 186,
+  "expected_sla_minutes": 60,
+  "timestamp": "2026-11-06T08:00:00Z"
+}
