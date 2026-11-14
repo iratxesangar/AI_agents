@@ -20,8 +20,8 @@ from app.knowledge_agent import (
     search_knowledge,
 )
 from app.schemas import (
-    GroundedStatement,
-    KnowledgeInvestigation,
+    Finding,
+    InvestigationResult,
     RetrievedChunk,
     SourceCitation,
     TriageDecision,
@@ -56,17 +56,17 @@ def _supported_investigation(docs):
         for doc in docs
     ]
     source_ids = [citation.source_id for citation in citations]
-    return KnowledgeInvestigation(
-        status="supported",
+    return InvestigationResult(
+        status="grounded_answer",
+        severity="P1",
         summary="La evidencia cubre las cuatro categorías necesarias.",
-        findings=[GroundedStatement(
-            text="El dataset es crítico y el retraso cruza el umbral P1.",
-            citation_ids=source_ids,
+        findings=[Finding(
+            claim="El dataset es crítico y el retraso cruza el umbral P1.",
+            sources=source_ids,
         )],
-        recommendations=[GroundedStatement(
-            text="Escalar al equipo de guardia y revisar la última ejecución.",
-            citation_ids=source_ids,
-        )],
+        recommended_actions=["Escalar al equipo de guardia y revisar la última ejecución."],
+        unknowns=["La causa raíz todavía no está confirmada."],
+        needs_human_approval=True,
         citations=citations,
     )
 
@@ -132,9 +132,13 @@ def test_retrieval_rejects_invalid_source_types_and_limits():
         _order_docs(limit=21)
 
 
-def test_supported_investigation_requires_findings_and_citations():
+def test_grounded_answer_requires_findings_and_citations():
     with pytest.raises(ValidationError, match="hallazgos y citas"):
-        KnowledgeInvestigation(status="supported", summary="Sin fuentes")
+        InvestigationResult(
+            status="grounded_answer", severity="INFO", summary="Sin fuentes",
+            findings=[], recommended_actions=[], unknowns=[],
+            needs_human_approval=False, citations=[],
+        )
 
 
 def test_retrieved_chunk_contract_requires_all_retrieval_fields():
@@ -142,12 +146,14 @@ def test_retrieved_chunk_contract_requires_all_retrieval_fields():
         RetrievedChunk(source_id="CAT-1", title="Catálogo", content="Texto", score=0.8)
 
 
-def test_abstained_investigation_cannot_include_uncited_claims():
+def test_insufficient_evidence_cannot_include_unsupported_findings():
     with pytest.raises(ValidationError, match="no puede presentar"):
-        KnowledgeInvestigation(
-            status="abstained", summary="No hay evidencia",
-            abstention_reason="Faltan fuentes",
-            findings=[GroundedStatement(text="afirmación", citation_ids=["x"])],
+        InvestigationResult(
+            status="insufficient_evidence", severity="INFO",
+            summary="No hay evidencia", findings=[
+                Finding(claim="afirmación", sources=["x"])
+            ], recommended_actions=[], unknowns=["Faltan fuentes"],
+            needs_human_approval=False, citations=[],
         )
 
 
@@ -155,14 +161,20 @@ def test_grounding_requires_all_source_types_and_verifiable_quotes():
     docs = _order_docs()
     chunks = _chunks_from_local_docs(docs)
     investigation = _supported_investigation(docs)
-    assert validate_grounding(investigation, chunks).status == "supported"
+    decision = TriageDecision(
+        severity="P1", summary="Alerta", evidence=[], hypotheses=[],
+        recommended_actions=[], needs_human_approval=True, confidence=0.9,
+    )
+    assert validate_grounding(investigation, chunks, triage=decision).status == "grounded_answer"
     incomplete = [doc for doc in docs if doc["source_type"] != "escalation"]
-    rejected = validate_grounding(investigation, _chunks_from_local_docs(incomplete))
-    assert rejected.status == "abstained"
-    assert "escalation" in rejected.abstention_reason
+    rejected = validate_grounding(
+        investigation, _chunks_from_local_docs(incomplete), triage=decision
+    )
+    assert rejected.status == "insufficient_evidence"
+    assert "escalation" in rejected.unknowns[0]
     wrong_quote = investigation.model_copy(deep=True)
     wrong_quote.citations[0].excerpt = "Texto que no existe en la fuente"
-    assert validate_grounding(wrong_quote, chunks).status == "abstained"
+    assert validate_grounding(wrong_quote, chunks, triage=decision).status == "insufficient_evidence"
 
 
 def test_grounding_blocks_citation_to_source_not_returned_by_search_knowledge():
@@ -170,9 +182,44 @@ def test_grounding_blocks_citation_to_source_not_returned_by_search_knowledge():
     chunks = _chunks_from_local_docs(docs)
     fabricated = _supported_investigation(docs)
     fabricated.citations[0].source_id = "DOC-NOT-RETURNED"
-    result = validate_grounding(fabricated, chunks)
-    assert result.status == "abstained"
-    assert "no se recuperó" in result.abstention_reason
+    decision = TriageDecision(
+        severity="P1", summary="Alerta", evidence=[], hypotheses=[],
+        recommended_actions=[], needs_human_approval=True, confidence=0.9,
+    )
+    result = validate_grounding(fabricated, chunks, triage=decision)
+    assert result.status == "insufficient_evidence"
+    assert "no se recuperó" in result.unknowns[0]
+
+
+def test_investigation_cannot_override_deterministic_severity_or_p1_approval():
+    docs = _order_docs()
+    chunks = _chunks_from_local_docs(docs)
+    triage = TriageDecision(
+        severity="P1", summary="Alerta crítica", evidence=[], hypotheses=[],
+        recommended_actions=[], needs_human_approval=True, confidence=0.9,
+    )
+    candidate = _supported_investigation(docs).model_copy(
+        update={"severity": "P2", "needs_human_approval": False}
+    )
+    result = validate_grounding(candidate, chunks, triage=triage)
+    assert result.status == "insufficient_evidence"
+    assert result.severity == "P1"
+    assert result.needs_human_approval is True
+
+
+def test_insufficient_result_uses_safe_evidence_request_action():
+    candidate = InvestigationResult(
+        status="insufficient_evidence", severity="INFO",
+        summary="No hay datos.", findings=[],
+        recommended_actions=["Ejecutar una remediación no verificada."],
+        unknowns=["Falta el procedimiento aplicable."],
+        needs_human_approval=False, citations=[],
+    )
+    result = validate_grounding(candidate, [], triage=None)
+    assert result.status == "insufficient_evidence"
+    assert result.recommended_actions == [
+        "Solicitar la evidencia o las fuentes que faltan."
+    ]
 
 
 def test_search_knowledge_returns_typed_chunks_with_citable_text_and_metadata():
@@ -253,7 +300,7 @@ def test_integrated_sdk_flow_uses_only_file_search_and_validates_output(monkeypa
         domain="commerce", environment="production", incident_type="freshness",
         as_of=ALERT_TIME, triage=decision, trace_calls=calls,
     )
-    assert investigation.status == "supported", calls
+    assert investigation.status == "grounded_answer", calls
     assert {citation.source_type for citation in investigation.citations} == REQUIRED_SOURCE_TYPES
     assert {call["tool"] for call in calls} == {"file_search", "knowledge_agent"}
     assert all(call["success"] for call in calls)
@@ -277,7 +324,7 @@ def test_integrated_sdk_abstains_without_credentials_or_vector_store(monkeypatch
         environment="production", incident_type="freshness", as_of=ALERT_TIME,
         triage=decision, trace_calls=calls,
     )
-    assert result.status == "abstained"
+    assert result.status == "insufficient_evidence"
     assert result.citations == []
     assert calls[0]["tool"] == "file_search"
     assert calls[0]["success"] is False
@@ -315,6 +362,6 @@ def test_file_search_failure_abstains_without_fabricating_citations(monkeypatch)
         environment="production", incident_type="freshness", as_of=ALERT_TIME,
         triage=decision, trace_calls=calls,
     )
-    assert result.status == "abstained"
+    assert result.status == "insufficient_evidence"
     assert result.citations == []
     assert all(call["success"] is False for call in calls)

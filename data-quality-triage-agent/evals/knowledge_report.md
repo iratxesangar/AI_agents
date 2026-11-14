@@ -2,7 +2,7 @@
 
 ## Resultado
 
-La última ejecución offline pasó **35/35 pruebas**, **13/13 casos** del triaje de la práctica 1 y **5/5 casos** de investigación documental. La suite documental no invoca el LLM: prueba la recuperación local simulada, el filtrado por metadatos y tiempo, el contrato Pydantic, la validación de citas y la abstención.
+La última ejecución offline pasó **37/37 pruebas**, **13/13 casos** del triaje de la práctica 1 y **5/5 casos** de investigación documental. La suite documental no invoca el LLM: prueba la recuperación local simulada, el filtrado por metadatos y tiempo, el contrato Pydantic, la validación de citas y la abstención.
 
 | Métrica documental | Resultado |
 |---|---:|
@@ -24,9 +24,10 @@ La última ejecución offline pasó **35/35 pruebas**, **13/13 casos** del triaj
 1. **Corpus pequeño, ficticio y versionado.** Hay 20 documentos Markdown, todos con `dataset`, `domain`, `environment`, `version`, `last_reviewed` y `status`. Se incluyen documentos activos y distractores obsoletos para comprobar filtros.
 2. **File Search como integración de runtime.** El agente construye filtros antes de buscar y activa la inclusión de resultados para poder inspeccionar las fuentes recuperadas. El script de carga está preparado, pero no se ejecuta sin una clave y configuración API de la usuaria.
 3. **Contrato tipado de recuperación.** `search_knowledge()` entrega `RetrievedChunk` con `source_id`, `title`, `content`, `score` y `metadata`.
-4. **Citas verificadas tras la salida del modelo.** Cada referencia debe apuntar a un chunk devuelto y su excerpt debe coincidir literalmente con el contenido. La validación rechaza una respuesta respaldada si falta alguna categoría requerida o aparece un `source_id` no recuperado.
-5. **Abstención como salida segura.** La ausencia de configuración, error del proveedor, fuente insuficiente o cita inválida no elimina el triaje determinista, pero impide presentar afirmaciones documentales sin soporte.
-6. **Solo lectura y trazabilidad.** File Search es la única herramienta documental. Filtros, resultado, salida del investigador y fallo se guardan en la traza local; no existe herramienta de escritura o remediación.
+4. **Salida centrada en evidencia.** `InvestigationResult` expresa `grounded_answer` o `insufficient_evidence`; cada `Finding` separa `claim` de sus IDs en `sources`. El resultado conserva la severidad determinista y la aprobación P1.
+5. **Citas verificadas tras la salida del modelo.** Cada referencia debe apuntar a un chunk devuelto y su excerpt debe coincidir literalmente con el contenido. La validación rechaza una respuesta respaldada si falta alguna categoría requerida o aparece un `source_id` no recuperado.
+6. **Abstención como salida segura.** La ausencia de configuración, error del proveedor, fuente insuficiente o cita inválida no elimina el triaje determinista, pero impide presentar afirmaciones documentales sin soporte.
+7. **Solo lectura y trazabilidad.** File Search es la única herramienta documental. Filtros, resultado, salida del investigador y fallo se guardan en la traza local; no existe herramienta de escritura o remediación.
 
 ## Alcance y límites
 

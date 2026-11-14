@@ -43,46 +43,45 @@ class SourceCitation(StrictOutputModel):
     excerpt: str = Field(min_length=1)
 
 
-class GroundedStatement(StrictOutputModel):
-    text: str = Field(min_length=1)
-    citation_ids: list[str] = Field(min_length=1)
+class Finding(StrictOutputModel):
+    claim: str = Field(min_length=1)
+    sources: list[str] = Field(min_length=1)
 
 
-class KnowledgeInvestigation(StrictOutputModel):
-    status: Literal["supported", "abstained"]
+class InvestigationResult(StrictOutputModel):
+    status: Literal["grounded_answer", "insufficient_evidence"]
+    severity: Literal["P1", "P2", "P3", "INFO"]
     summary: str
-    findings: list[GroundedStatement] = Field(default_factory=list)
-    recommendations: list[GroundedStatement] = Field(default_factory=list)
-    citations: list[SourceCitation] = Field(default_factory=list)
-    abstention_reason: str | None = None
+    findings: list[Finding]
+    recommended_actions: list[str]
+    unknowns: list[str]
+    needs_human_approval: bool
+    # Resuelve los IDs de Finding.sources en citas inspeccionables y verificables.
+    citations: list[SourceCitation]
 
     @model_validator(mode="after")
-    def enforce_evidence_or_abstention(self):
-        if self.status == "supported":
-            if not self.citations or not self.findings:
+    def enforce_evidence_or_insufficient_status(self):
+        if self.severity == "P1" and not self.needs_human_approval:
+            raise ValueError("Toda investigación P1 requiere aprobación humana")
+        citation_ids = {citation.source_id for citation in self.citations}
+        if self.status == "grounded_answer":
+            if not self.findings or not self.citations:
                 raise ValueError(
-                    "Una investigación supported requiere hallazgos y citas"
+                    "grounded_answer requiere hallazgos y citas"
                 )
-            if self.abstention_reason:
-                raise ValueError(
-                    "Una investigación supported no puede incluir abstention_reason"
-                )
-            known_ids = {citation.source_id for citation in self.citations}
-            for statement in (*self.findings, *self.recommendations):
-                if not set(statement.citation_ids) <= known_ids:
+            for finding in self.findings:
+                if not set(finding.sources) <= citation_ids:
                     raise ValueError(
-                        "Cada hallazgo y recomendación debe citar fuentes incluidas"
+                        "Cada finding.sources debe corresponder a citas incluidas"
                     )
-        else:
-            if self.findings or self.recommendations or self.citations:
-                raise ValueError(
-                    "Una investigación abstained no puede presentar hallazgos, "
-                    "recomendaciones ni citas"
-                )
-            if not self.abstention_reason:
-                raise ValueError(
-                    "Una investigación abstained debe explicar por qué"
-                )
+        elif self.findings or self.citations:
+            raise ValueError(
+                "insufficient_evidence no puede presentar hallazgos ni citas"
+            )
+        elif not self.unknowns:
+            raise ValueError(
+                "insufficient_evidence debe indicar qué evidencia se desconoce"
+            )
         return self
 
 
@@ -94,7 +93,7 @@ class TriageDecision(StrictOutputModel):
     recommended_actions: list[str]
     needs_human_approval: bool
     confidence: float = Field(ge=0, le=1)
-    investigation: KnowledgeInvestigation | None = None
+    investigation: InvestigationResult | None = None
 
     @model_validator(mode="after")
     def require_human_approval_for_p1(self):

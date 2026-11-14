@@ -11,7 +11,7 @@ from app.knowledge import (
     validate_grounding,
 )
 from app.schemas import (
-    GroundedStatement, KnowledgeInvestigation, RetrievedChunk, SourceCitation,
+    Finding, InvestigationResult, RetrievedChunk, SourceCitation,
 )
 
 EVAL_DIR = Path(__file__).resolve().parent
@@ -34,17 +34,17 @@ def _stub_structured_output(docs, missing):
         for doc in docs
     ]
     source_ids = [citation.source_id for citation in citations]
-    return KnowledgeInvestigation(
-        status="supported",
+    return InvestigationResult(
+        status="grounded_answer",
+        severity="INFO",
         summary="Salida simulada con citas literales para evaluar el validador.",
-        findings=[GroundedStatement(
-            text="Las fuentes recuperadas respaldan una investigación inicial.",
-            citation_ids=source_ids,
+        findings=[Finding(
+            claim="Las fuentes recuperadas respaldan una investigación inicial.",
+            sources=source_ids,
         )],
-        recommendations=[GroundedStatement(
-            text="Solicitar revisión humana según la documentación aplicable.",
-            citation_ids=source_ids,
-        )],
+        recommended_actions=["Solicitar revisión humana según la documentación aplicable."],
+        unknowns=[],
+        needs_human_approval=False,
         citations=citations,
     )
 
@@ -81,14 +81,14 @@ def run() -> dict:
             and not (set(case.get("excluded_source_ids", [])) & {
                 doc["source_id"] for doc in docs
             })
-            if expected_status == "supported"
+            if expected_status == "grounded_answer"
             else set(case.get("missing_source_types", [])) <= missing
         )
         citations_pass = (
-            actual_status == "supported"
+            actual_status == "grounded_answer"
             and all(citation.excerpt for citation in verified.citations)
-            if expected_status == "supported"
-            else actual_status == "abstained" and not verified.citations
+            if expected_status == "grounded_answer"
+            else actual_status == "insufficient_evidence" and not verified.citations
         )
         results.append({
             "id": case["id"],

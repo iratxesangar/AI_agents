@@ -47,7 +47,7 @@ python -m app.agent --alert-file fixtures/orders_daily_freshness_alert.json --kn
 
 `OPENAI_MODEL` es opcional y su valor por defecto es `gpt-4.1-mini`. File Search recibe filtros de estado activo, dataset, dominio, entorno, tipo de incidencia, revisión reciente y ventana temporal de validez. Los resultados de búsqueda se incluyen para inspección en la respuesta del SDK y en la traza JSON.
 
-El contrato base sigue siendo `TriageDecision`; el campo opcional `investigation` devuelve `KnowledgeInvestigation` (`supported` o `abstained`). La interfaz `search_knowledge()` normaliza los resultados recuperados a `RetrievedChunk(source_id, title, content, score, metadata)`. Un resultado respaldado requiere hallazgos y citas a fragmentos literalmente presentes en esos chunks, cubriendo catálogo, runbook, historial de despliegue y escalado. El validador posterior al modelo rechaza cualquier `source_id` que no haya devuelto `search_knowledge()`; ante una fuente ausente o cita no verificable, el agente se abstiene sin hallazgos ni recomendaciones documentales.
+El contrato base sigue siendo `TriageDecision`; el campo opcional `investigation` devuelve `InvestigationResult` (`grounded_answer` o `insufficient_evidence`) con severidad, hallazgos, recomendaciones, incertidumbres y aprobación humana. Cada `Finding` separa `claim` de `sources`; las fuentes se resuelven mediante citas inspeccionables. `search_knowledge()` normaliza resultados a `RetrievedChunk(source_id, title, content, score, metadata)`. El validador rechaza cualquier fuente que no haya devuelto esa herramienta y verifica que cada cita exista literalmente en su contenido. Si falta evidencia, devuelve `insufficient_evidence` sin hallazgos ni citas, conservando la severidad y aprobación del triaje determinista.
 
 Cada ejecución guarda solicitud, llamadas de lectura, filtros, resultados de File Search y salida final en `traces/<trace_id>.json`. La traza no incluye la clave API. Ante una herramienta ausente, fallo de API o ausencia de Vector Store, el triaje sigue devolviendo `TriageDecision` y la investigación se abstiene.
 
@@ -61,7 +61,7 @@ python -m evals.run_knowledge_evals
 
 La suite de triaje conserva 13 casos independientes del prompt. La suite documental mantiene cinco casos de evaluación para cobertura de fuentes, dataset desconocido, entorno no aplicable, esquema documentado y corte temporal. Esta suite prueba filtros, validador de citas y abstención con recuperación local simulada; no llama al LLM ni afirma medir la calidad semántica de una respuesta en vivo.
 
-Última ejecución offline: **35 pruebas**, **13/13 casos de triaje** y **5/5 casos documentales** pasaron. La ejecución real del modelo y File Search requiere API propia y no está incluida en estos resultados.
+Última ejecución offline: **37 pruebas**, **13/13 casos de triaje** y **5/5 casos documentales** pasaron. La ejecución real del modelo y File Search requiere API propia y no está incluida en estos resultados.
 
 | Métrica | Meta inicial | Resultado offline |
 |---|---:|---:|

@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from app.schemas import KnowledgeInvestigation, RetrievedChunk
+from app.schemas import InvestigationResult, RetrievedChunk, TriageDecision
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
 REQUIRED_METADATA = frozenset({
@@ -177,21 +177,43 @@ def search_knowledge_documents(
     return candidates[:limit]
 
 
-def abstain(reason: str) -> KnowledgeInvestigation:
-    return KnowledgeInvestigation(
-        status="abstained",
-        summary="No se emite una investigación documental sin respaldo suficiente.",
-        abstention_reason=reason,
+def abstain(
+    reason: str,
+    *,
+    triage: TriageDecision | None = None,
+) -> InvestigationResult:
+    severity = triage.severity if triage else "INFO"
+    needs_human_approval = triage.needs_human_approval if triage else False
+    return InvestigationResult(
+        status="insufficient_evidence",
+        severity=severity,
+        summary="No se emite una conclusión documental sin respaldo suficiente.",
+        findings=[],
+        recommended_actions=["Solicitar la evidencia o las fuentes que faltan."],
+        unknowns=[reason],
+        needs_human_approval=needs_human_approval,
+        citations=[],
     )
 
 
 def validate_grounding(
-    investigation: KnowledgeInvestigation,
+    investigation: InvestigationResult,
     retrieved_chunks: list[RetrievedChunk],
-) -> KnowledgeInvestigation:
+    *,
+    triage: TriageDecision | None = None,
+) -> InvestigationResult:
     """Acepta citas únicamente si apuntan a chunks devueltos por search_knowledge."""
-    if investigation.status == "abstained":
-        return investigation
+    if triage and (
+        investigation.severity != triage.severity
+        or investigation.needs_human_approval != triage.needs_human_approval
+    ):
+        return abstain(
+            "La severidad o la aprobación no coincide con el triaje determinista.",
+            triage=triage,
+        )
+    if investigation.status == "insufficient_evidence":
+        reason = "; ".join(investigation.unknowns)
+        return abstain(reason, triage=triage)
     by_id = {chunk.source_id: chunk for chunk in retrieved_chunks}
     covered_types = {
         chunk.metadata.get("source_type") for chunk in retrieved_chunks
@@ -200,26 +222,37 @@ def validate_grounding(
         missing = sorted(REQUIRED_SOURCE_TYPES - covered_types)
         return abstain(
             "Faltan fuentes requeridas para una investigación auditable: "
-            + ", ".join(missing) + "."
+            + ", ".join(missing) + ".",
+            triage=triage,
         )
     for citation in investigation.citations:
         source = by_id.get(citation.source_id)
         if source is None:
-            return abstain("La respuesta citó una fuente que no se recuperó.")
+            return abstain(
+                "La respuesta citó una fuente que no se recuperó.", triage=triage
+            )
         if (
             citation.title != source.title
             or citation.source_type != source.metadata.get("source_type")
             or citation.uri != source.metadata.get("uri")
             or citation.excerpt not in source.content
         ):
-            return abstain("No se pudo verificar una cita contra el resultado recuperado.")
-    for statement in (*investigation.findings, *investigation.recommendations):
-        if not set(statement.citation_ids) <= set(by_id):
-            return abstain("Un hallazgo o recomendación cita una fuente no recuperada.")
+            return abstain(
+                "No se pudo verificar una cita contra el resultado recuperado.",
+                triage=triage,
+            )
+    for finding in investigation.findings:
+        if not set(finding.sources) <= set(by_id):
+            return abstain(
+                "Un hallazgo cita una fuente que no devolvió search_knowledge.",
+                triage=triage,
+            )
     cited_types = {
         by_id[citation.source_id].metadata.get("source_type")
         for citation in investigation.citations
     }
     if not REQUIRED_SOURCE_TYPES <= cited_types:
-        return abstain("Las citas no cubren todas las categorías requeridas.")
+        return abstain(
+            "Las citas no cubren todas las categorías requeridas.", triage=triage
+        )
     return investigation
