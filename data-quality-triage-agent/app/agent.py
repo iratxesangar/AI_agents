@@ -312,8 +312,8 @@ def _build_decision(
         for deployment in deployment_rows:
             label = deployment.get("change") or deployment.get("status") or "despliegue"
             evidence.append(
-                f"Despliegue reciente como contexto: {label}; "
-                "la cercanía temporal no demuestra causalidad."
+                "Despliegue temporalmente cercano como contexto; "
+                f"{label}. La cercanía temporal no demuestra causalidad."
             )
     elif "read_recent_deployments" in failed_tools:
         evidence.append("No se pudieron consultar los despliegues recientes.")
