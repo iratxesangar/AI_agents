@@ -61,7 +61,7 @@ python -m evals.run_knowledge_evals
 
 La suite de triaje conserva 13 casos independientes del prompt. La suite documental mantiene cinco casos de evaluación para cobertura de fuentes, dataset desconocido, entorno no aplicable, esquema documentado y corte temporal. Esta suite prueba filtros, validador de citas y abstención con recuperación local simulada; no llama al LLM ni afirma medir la calidad semántica de una respuesta en vivo.
 
-Última ejecución offline: **33 pruebas**, **13/13 casos de triaje** y **5/5 casos documentales** pasaron. La ejecución real del modelo y File Search requiere API propia y no está incluida en estos resultados.
+Última ejecución offline: **35 pruebas**, **13/13 casos de triaje** y **5/5 casos documentales** pasaron. La ejecución real del modelo y File Search requiere API propia y no está incluida en estos resultados.
 
 | Métrica | Meta inicial | Resultado offline |
 |---|---:|---:|
