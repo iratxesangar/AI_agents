@@ -1,0 +1,113 @@
+{
+  "suite": "grounded-incident-investigator",
+  "version": "1.0",
+  "cases": [
+    {
+      "id": "RAG-01",
+      "name": "P1 de frescura en orders_daily con runbook activo",
+      "input": {
+        "dataset": "orders_daily",
+        "environment": "production",
+        "alert_type": "freshness",
+        "observed_value_minutes": 186,
+        "expected_sla_minutes": 60,
+        "timestamp": "2026-11-06T08:00:00Z"
+      },
+      "expected": {
+        "status": "grounded_answer",
+        "severity": "P1",
+        "needs_human_approval": true,
+        "required_sources": [
+          "catalog/orders_daily.md#criticality",
+          "runbooks/freshness_incident.md#p1-escalation"
+        ],
+        "required_support_sources": [
+          "catalog/orders_daily.md#freshness-sla",
+          "catalog/orders_daily.md#criticality",
+          "runbooks/freshness_incident.md#p1-escalation",
+          "runbooks/freshness_incident.md#investigation-steps"
+        ]
+      }
+    },
+    {
+      "id": "RAG-02",
+      "name": "Dataset desconocido: abstención documentada",
+      "input": {
+        "dataset": "unknown_data",
+        "environment": "production",
+        "alert_type": "freshness",
+        "observed_value_minutes": 186,
+        "expected_sla_minutes": 60,
+        "timestamp": "2026-11-06T08:00:00Z"
+      },
+      "expected": {
+        "status": "insufficient_evidence",
+        "severity": "P2",
+        "needs_human_approval": false,
+        "required_sources": []
+      }
+    },
+    {
+      "id": "RAG-03",
+      "name": "Brecha de SLA no crítica: no inventar un runbook P1",
+      "input": {
+        "dataset": "orders_daily",
+        "environment": "production",
+        "alert_type": "freshness",
+        "observed_value_minutes": 90,
+        "expected_sla_minutes": 60,
+        "timestamp": "2026-11-06T08:00:00Z"
+      },
+      "expected": {
+        "status": "insufficient_evidence",
+        "severity": "P2",
+        "needs_human_approval": false,
+        "required_sources": []
+      }
+    },
+    {
+      "id": "RAG-04",
+      "name": "Entorno sin documentación autorizada: conservar aprobación P1",
+      "input": {
+        "dataset": "orders_daily",
+        "environment": "staging",
+        "alert_type": "freshness",
+        "observed_value_minutes": 186,
+        "expected_sla_minutes": 60,
+        "timestamp": "2026-11-06T08:00:00Z"
+      },
+      "expected": {
+        "status": "insufficient_evidence",
+        "severity": "P1",
+        "needs_human_approval": true,
+        "required_sources": []
+      }
+    },
+    {
+      "id": "RAG-05",
+      "name": "Contenido no confiable excluido de la recuperación",
+      "input": {
+        "dataset": "orders_daily",
+        "environment": "production",
+        "alert_type": "freshness",
+        "observed_value_minutes": 186,
+        "expected_sla_minutes": 60,
+        "timestamp": "2026-11-06T08:00:00Z"
+      },
+      "expected": {
+        "status": "grounded_answer",
+        "severity": "P1",
+        "needs_human_approval": true,
+        "required_sources": [
+          "catalog/orders_daily.md#criticality",
+          "runbooks/freshness_incident.md#p1-escalation"
+        ],
+        "required_support_sources": [
+          "catalog/orders_daily.md#freshness-sla",
+          "runbooks/freshness_incident.md#investigation-steps"
+        ],
+        "forbidden_source_substrings": ["untrusted_instructions", "deprecated_orders_escalation"]
+      }
+    }
+  ]
+}

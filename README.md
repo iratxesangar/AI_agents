@@ -6,7 +6,7 @@ Portfolio y laboratorio de proyectos de agentes IA y automatización. Cada proye
 |---|---|---|
 | RevisaViajes | [revisaviajes/](revisaviajes/) | Prototipo documental con motor offline y revisión opcional mediante API |
 | Radar Data & AI | [radar-data-ai/](radar-data-ai/) | Copia del código del Site privado; herramientas MCP e historial persistente |
-| Data Quality Triage Agent | [data-quality-triage-agent/](data-quality-triage-agent/) | Estructura inicial; lógica y evaluaciones pendientes |
+| Data Quality Triage Agent | [data-quality-triage-agent/](data-quality-triage-agent/) | Triaje seguro e investigador documental local con citas verificables |
 
 La integración no despliega servicios ni mueve bases de datos o tareas programadas. Consulta [MIGRATION.md](MIGRATION.md) para conocer repositorios, ramas y commits de origen. El historial anterior de los proyectos importados se conserva en sus repositorios originales.
 
@@ -15,9 +15,11 @@ La integración no despliega servicios ni mueve bases de datos o tareas programa
 ```bash
 (cd revisaviajes && python -m unittest discover -s tests)
 (cd radar-data-ai && npm run build && npm run validate)
+(cd data-quality-triage-agent && python -m pip install -r requirements-dev.txt && python -m pytest -q && python -m evals.run_evals && python -m evals.run_investigation_evals)
 ```
 
-GitHub Actions mantiene las pruebas de RevisaViajes y valida el artefacto de Radar. El proyecto de calidad de datos todavía no tiene pruebas funcionales.
+GitHub Actions mantiene las pruebas de RevisaViajes, valida el artefacto de
+Radar y ejecuta las suites locales del agente de calidad de datos.
 
 ## RevisaViajes: instrucciones de uso
 
