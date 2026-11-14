@@ -66,13 +66,13 @@ def classify_severity(
     if p2_reasons:
         return SeverityResult(Severity.P2, tuple(p2_reasons))
 
-    if not actionable or not evidence_sufficient:
-        reason = (
-            "alerta no accionable"
-            if not actionable
-            else "evidencia insuficiente para clasificar una incidencia"
+    if not evidence_sufficient:
+        return SeverityResult(
+            Severity.INFO,
+            ("evidencia insuficiente para clasificar una incidencia",),
         )
-        return SeverityResult(Severity.INFO, (reason,))
+    if not actionable:
+        return SeverityResult(Severity.INFO, ("alerta no accionable",))
 
     if moderate_degradation:
         return SeverityResult(
