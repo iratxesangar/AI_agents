@@ -1,7 +1,7 @@
 {
   "suite": "data-quality-triage-agent",
   "version": 1,
-  "description": "Casos de evaluación independientes de AGENT_INSTRUCTIONS y de cualquier prompt.",
+  "description": "Corpus de 13 casos estructurados, independiente de AGENT_INSTRUCTIONS y de cualquier prompt.",
   "cases": [
     {
       "id": "DQ-01",
@@ -399,6 +399,73 @@
         "must_include": [
           "retraso de frescura >= 3x SLA",
           "causa raíz no determinada"
+        ],
+        "must_not_claim": [
+          "causa raíz confirmada"
+        ]
+      }
+    },
+    {
+      "id": "DQ-13",
+      "name": "Alerta de frescura production para orders_daily gold",
+      "input": {
+        "request": "Investiga la alerta de frescura recibida.",
+        "alert": {
+          "dataset": "orders_daily",
+          "environment": "production",
+          "alert_type": "freshness",
+          "observed_value_minutes": 186,
+          "expected_sla_minutes": 60,
+          "timestamp": "2026-11-06T08:00:00Z"
+        },
+        "metadata": {
+          "dataset_id": "orders_daily",
+          "name": "Pedidos diarios",
+          "is_critical": true,
+          "tier": "gold",
+          "owner": "data-platform",
+          "consumers": [
+            "checkout"
+          ],
+          "pipeline": "orders_pipeline"
+        },
+        "metrics": {
+          "null_count": 0,
+          "duplicate_count": 0,
+          "null_rate_pct": 0,
+          "rows_checked": 120000,
+          "complete": true,
+          "relevant_schema_regression": false,
+          "strong_volume_drop": false,
+          "moderate_degradation": false,
+          "volume_change_pct": 0
+        },
+        "freshness": {
+          "delay_minutes": 186,
+          "sla_minutes": 60,
+          "delay_seconds": 11160,
+          "sla_seconds": 3600,
+          "critical_flow_unavailable": false
+        },
+        "deployments": {
+          "lookback_hours": 6,
+          "deployments": [],
+          "checked": true
+        },
+        "cause_evidence": []
+      },
+      "expected": {
+        "severity": "P1",
+        "needs_human_approval": true,
+        "must_include": [
+          "freshness: 186 min; sla: 60 min",
+          "dataset clasificado como gold y crítico para checkout",
+          "no hay despliegues en las últimas 6 horas",
+          "causa raíz no determinada",
+          "posible retraso o fallo en la ejecución upstream",
+          "escalar al on-call del pipeline de pedidos",
+          "comprobar el estado de la última ejecución",
+          "no relanzar el pipeline sin aprobación humana"
         ],
         "must_not_claim": [
           "causa raíz confirmada"
