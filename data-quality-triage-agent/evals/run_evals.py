@@ -58,14 +58,23 @@ def _case_tool_registry(
     if context:
         metadata["evaluation_context"] = context
 
+    deployment_result = case_input.get("deployments")
+    if deployment_result is None:
+        deployment = case_input.get("deployment")
+        deployment_result = {
+            "lookback_hours": 6,
+            "deployments": [copy.deepcopy(deployment)] if deployment else [],
+            "checked": bool(deployment),
+        }
     values = {
         "read_dataset_metadata": metadata,
         "read_quality_metrics": copy.deepcopy(case_input.get("metrics")),
         "read_freshness_status": copy.deepcopy(case_input.get("freshness")),
+        "read_recent_deployments": copy.deepcopy(deployment_result),
     }
 
     def make_reader(name: str) -> Callable[..., dict[str, Any]]:
-        def reader(*, dataset_id: str) -> dict[str, Any]:
+        def reader(*, dataset_id: str, **kwargs: Any) -> dict[str, Any]:
             if dataset_id != case["input"]["metadata"]["dataset_id"]:
                 raise KeyError("Dataset fuera del caso de evaluación")
             if name in failures:
@@ -98,6 +107,7 @@ def _evaluate_case(
             dataset_id=dataset_id,
             tool_registry=_case_tool_registry(case),
             trace_dir=trace_dir,
+            alert=case["input"].get("alert"),
         )
         decision = decision_obj.model_dump(mode="json")
         trace_files = list(trace_dir.glob("*.json"))
@@ -247,6 +257,7 @@ def _format_metric(key: str, value: Any) -> str:
 def _print_report(
     current: dict[str, Any],
     baseline: dict[str, Any] | None,
+    baseline_note: str | None = None,
 ) -> None:
     print(f"Evaluated {current['case_count']} cases")
     print("| Métrica | Meta | Antes | Después |")
@@ -257,8 +268,10 @@ def _print_report(
         before_text = _format_metric(key, before) if before is not None else "N/A"
         after_text = _format_metric(key, current[key])
         print(f"| {label} | {target} | {before_text} | {after_text} |")
-    if baseline is None:
-        print("No hay una corrida anterior guardada; la próxima ejecución comparará métricas.")
+    if baseline_note:
+        print(baseline_note)
+    elif baseline is None:
+        print("No hay una corrida anterior comparable; la próxima ejecución comparará métricas.")
 
 
 def run_suite(
@@ -272,13 +285,23 @@ def run_suite(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     previous_report = None
+    baseline_note = None
     selected_baseline = baseline_path
     if selected_baseline is None and output_path.exists():
         selected_baseline = output_path
     if selected_baseline is not None and selected_baseline.exists():
-        previous_report = json.loads(
+        old_result = json.loads(
             selected_baseline.read_text(encoding="utf-8")
-        ).get("metrics")
+        )
+        current_case_ids = sorted(case["id"] for case in cases)
+        old_case_ids = sorted(old_result.get("case_ids", []))
+        if old_case_ids == current_case_ids:
+            previous_report = old_result.get("metrics")
+        else:
+            baseline_note = (
+                "La suite cambió de casos; se omite la comparación para evitar "
+                "comparar denominadores distintos."
+            )
 
     trace_root = output_path.parent / "traces" / run_id
     results = [
@@ -292,6 +315,7 @@ def run_suite(
         "version": suite["version"],
         "run_id": run_id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "case_ids": sorted(case["id"] for case in cases),
         "metrics": current_metrics,
         "baseline_metrics": previous_report,
         "cases": results,
@@ -300,7 +324,7 @@ def run_suite(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    _print_report(current_metrics, previous_report)
+    _print_report(current_metrics, previous_report, baseline_note)
     print(f"Resultado JSON: {output_path}")
     failed = [result["id"] for result in results if not result["case_pass"]]
     if failed:
