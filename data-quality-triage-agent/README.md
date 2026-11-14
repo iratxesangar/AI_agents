@@ -43,7 +43,7 @@ El evaluador aplica los casos estructurados de `evals/cases.json` al flujo real 
 
 El primer run reporta “N/A” en Antes porque no había resultados de evaluación automatizada guardados; a partir del segundo, compara con la ejecución anterior. El corpus de 12 casos se ejecuta de forma determinista, sin inferencia de un modelo.
 
-## Iteración de mejora
+Consulta el [scorecard verificado](evals/behavioral_scorecard.md) para ver los resultados Antes/Después de los 12 casos y la última corrida de pruebas.\n\n## Iteración de mejora
 
 Cuando un caso falla, aplicar en este orden:
 
