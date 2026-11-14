@@ -1,4 +1,5 @@
-"""Contrato estricto de salida del agente de triaje."""
+"""Contratos estrictos de entrada y salida del agente de triaje."""
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -6,6 +7,15 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 class StrictOutputModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class AlertInput(StrictOutputModel):
+    dataset: str = Field(min_length=1)
+    environment: str = Field(min_length=1)
+    alert_type: Literal["freshness", "volume", "schema", "quality"]
+    observed_value_minutes: float = Field(ge=0)
+    expected_sla_minutes: float = Field(gt=0)
+    timestamp: datetime
 
 
 class Hypothesis(StrictOutputModel):
