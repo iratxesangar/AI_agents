@@ -16,3 +16,6 @@ demo/
 *.pdf
 *.docx
 *.zip
+
+# Trazas locales del agente (pueden contener solicitudes y resultados de herramientas)
+data-quality-triage-agent/traces/
