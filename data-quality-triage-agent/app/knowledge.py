@@ -18,6 +18,22 @@ ALLOWED_SOURCE_TYPES = REQUIRED_SOURCE_TYPES | frozenset({
     "ownership", "distractor", "deprecated_runbook"
 })
 MAX_REVIEW_AGE_DAYS = 180
+TOKEN_SYNONYMS = {
+    "mantiene": {"owner", "ownership", "responsable", "team"},
+    "propietario": {"owner", "ownership"},
+    "responsable": {"owner", "ownership"},
+    "quien": {"owner", "ownership"},
+    "pasos": {"step", "steps", "runbook", "procedure"},
+    "procedimiento": {"runbook", "procedure", "steps"},
+    "guia": {"runbook", "guide", "procedure"},
+    "obsoleto": {"deprecated", "retired", "obsolete"},
+    "retirada": {"deprecated", "retired"},
+    "escalado": {"escalation", "oncall"},
+    "esquema": {"schema", "contract"},
+    "contrato": {"schema", "contract"},
+    "despliegue": {"deployment", "release"},
+    "frescura": {"freshness"},
+}
 
 
 def _normalize(value: str) -> str:
@@ -26,10 +42,14 @@ def _normalize(value: str) -> str:
 
 
 def _tokens(value: str) -> set[str]:
-    return {
+    tokens = {
         token for token in re.findall(r"[a-z0-9_]+", _normalize(value))
         if len(token) > 2
     }
+    expanded = set(tokens)
+    for token in tokens:
+        expanded.update(TOKEN_SYNONYMS.get(token, set()))
+    return expanded
 
 
 def _parse_frontmatter(path: Path) -> tuple[dict[str, str], str]:
@@ -120,7 +140,7 @@ def search_knowledge_documents(
     incident_type: str,
     as_of: str | None = None,
     source_types: Iterable[str] | None = None,
-    limit: int = 8,
+    limit: int = 12,
 ) -> list[dict[str, Any]]:
     """Simula retrieval con los mismos filtros de metadatos que el vector store."""
     if not query.strip() or not dataset_id.strip():

@@ -2,6 +2,19 @@
 
 Proyecto de prácticas de ingeniería de agentes. La práctica 1 clasifica alertas con reglas explícitas y cuatro herramientas deterministas de solo lectura. La práctica 2 añade investigación recuperada de documentación sintética y citas verificables. No requiere un almacén de datos productivo.
 
+## Arquitectura
+
+```mermaid
+flowchart TD
+    A[Alerta y metadatos] --> B[Triaje determinista]
+    B --> C[File Search con filtros]
+    D[Corpus Markdown versionado] --> C
+    C --> E[Validación de citas y esquema Pydantic]
+    E --> F[InvestigationResult y traza local]
+```
+
+El triaje determina la severidad y el requisito de aprobación. File Search recupera evidencia del corpus autorizado. El validador confirma que las citas pertenecen a resultados recuperados; si falta evidencia, la investigación se abstiene.
+
 ## Preparar el entorno
 
 Desde `data-quality-triage-agent/`:
@@ -21,6 +34,8 @@ python -m app.agent --alert-file fixtures/orders_daily_freshness_alert.json
 ## Práctica 2: investigación con fuentes
 
 El corpus versionado contiene **22 documentos Markdown ficticios** en `knowledge/`: catálogo de datasets, runbooks, propietarios, historial de despliegues, procedimientos de escalado y documentos distractores. Cada documento incluye `dataset`, `domain`, `environment`, `version`, `last_reviewed` y `status` (`active` o `deprecated`), además de identificadores y tipo de fuente para filtrar y citar.
+
+Ejemplos del corpus: `CAT-ORDERS-001` es el catálogo activo `orders_daily` v1.2.0 con SLA de 60 minutos; `RB-FRESHNESS-001` es el runbook activo v2.0.0; `OLD-ORDERS-RB-001` es un runbook `deprecated` v0.9.0. Los dos últimos permiten probar que el procedimiento actual prevalece y que el documento retirado no se usa para recomendar acciones.
 
 ### Configurar el File Search gestionado
 
@@ -66,19 +81,39 @@ Cada ejecución de recuperación guarda consulta, filtros, fragmentos y puntuaci
 
 Para añadir casos inspirados en un flujo real, crea localmente `evals/private/retrieval_cases.json` con la misma estructura de `retrieval_cases.json` y ejecútalos con `python -m evals.run_retrieval_evals --cases evals/private/retrieval_cases.json --split development`. `evals/private/` está excluido de Git. No incluyas datos personales, secretos ni texto interno identificable; anonimiza los casos antes de guardarlos y mantenlos fuera de cualquier commit.
 
-Última ejecución offline: **40 pruebas**, **13/13 casos de triaje**, **5/5 casos documentales** y **10/10 casos de desarrollo de recuperación** pasaron. La única ejecución final retenida pasó **5/6**: H03 se abstuvo porque la búsqueda no recuperó el documento de escalado requerido. El resultado queda registrado sin ajustar el código contra el holdout. La ejecución real del modelo y File Search requiere API propia y no está incluida en estos resultados.
+Última ejecución offline: **42 pruebas**, **13/13 casos de triaje**, **5/5 casos documentales** y **10/10 casos de desarrollo de recuperación** pasaron. Las métricas de calidad siguientes son del conjunto de desarrollo y se guardan en `evals/results/retrieval_development_latest.json`, junto con las trazas. Recall@3 se calcula sobre las 8 consultas etiquetadas (15 fuentes relevantes en total). El harness usa respuestas de referencia, no ejecuta el LLM y no mide calidad semántica live.
 
 | Métrica | Meta inicial | Resultado offline |
 |---|---:|---:|
-| Salidas válidas según esquema | 100% | 100% |
-| Severidad correcta | ≥ 90% | 100% (13/13) |
-| P1 con aprobación humana | 100% | 100% |
-| Causas afirmadas sin evidencia | 0 | 0 |
-| Acciones de escritura ejecutadas | 0 | 0 |
-| Casos de prompt injection bloqueados/ignorados | 100% | 100% |
-| Recuperación/cita verificable o abstención correcta | 100% | 100% (5/5) |
-| Casos de desarrollo de recuperación | 100% | 100% (10/10) |
-| Casos retenidos de recuperación | Diagnóstico | 83,33% (5/6); H03 sin fuente de escalado |
+| Métrica | Criterio | Desarrollo offline |
+|---|---:|---:|
+| Validez del esquema `InvestigationResult` | 100% | 100% (10/10) |
+| Recall@3 de fuentes relevantes | ≥ 90% | 93,33% (14/15; 8 consultas etiquetadas) |
+| Citas válidas | 100% | 100% (25/25) |
+| Cobertura de citas en afirmaciones materiales | ≥ 95% | 100% (7/7) |
+| Uso correcto de fuentes obsoletas | 100% | 100% (10/10) |
+| Abstención cuando falta evidencia | 100% | 100% (4/4) |
+| Casos P1 con aprobación humana | 100% | 100% (2/2) |
+| Casos de desarrollo que pasan todos los checks | 100% | 100% (10/10) |
+
+El holdout de la versión anterior se ejecutó una vez y pasó 5/6: H03 se abstuvo porque no recuperó el procedimiento de escalado. Se conserva como resultado histórico; no se ha vuelto a ejecutar ni se usó para ajustar esta iteración. Los nuevos criterios de calidad se midieron solo sobre desarrollo.
+
+## Fallos de recuperación y correcciones
+
+1. **La consulta «procedimiento vigente» no colocaba el runbook de frescura entre los tres primeros.** El corpus mezcla español e inglés y el recuperador lexical no reconocía esos términos como equivalentes. Añadí sinónimos controlados para `procedimiento`/`runbook` y `frescura`/`freshness`; los casos D04 y D07 comprueban la regresión.
+2. **«Quién mantiene» no encontraba bien las fuentes de ownership y «esquema» no encontraba `schema`.** Añadí equivalencias para ownership/responsable, esquema/contrato y vocabulario de despliegue. En los casos de desarrollo, Recall@3 mejoró de **80% a 93,33%** y superó el umbral del 90%.
+3. **La pregunta multi-documento D08 perdía un registro de despliegue al truncar candidatos en ocho.** Amplié el límite de recuperación local a doce para poder verificar todos los documentos requeridos antes de construir la respuesta; D08 vuelve a recuperar catálogo, ownership, runbook, historial y escalado.
+
+## Pruebas y reproducción
+
+Las pruebas unitarias verifican preservación de `source_id`, versión y metadatos; exclusión de `deprecated`; rechazo de citas inexistentes; y que una salida grounded no pueda carecer de hallazgos y citas. Las pruebas de integración usan el SDK simulado para comprobar recuperación P1 con catálogo y runbook, JSON compatible con `InvestigationResult`, abstención ante fallos y que el texto de prompt injection permanezca como dato no confiable.
+
+```bash
+python -m pytest -q
+python -m evals.run_evals
+python -m evals.run_knowledge_evals
+python -m evals.run_retrieval_evals
+```
 
 ## Estructura
 
@@ -95,4 +130,6 @@ Para añadir casos inspirados en un flujo real, crea localmente `evals/private/r
 - `evals/run_retrieval_evals.py`: traza por caso y evaluación de recuperación; por defecto solo ejecuta desarrollo.
 - `traces/`: trazas JSON locales, ignoradas por Git.
 
-El límite principal de esta práctica es que la suite offline valida filtros y citas, pero no demuestra que el texto citado implique semánticamente cada afirmación. Antes de confiar en recomendaciones de una ejecución real, revisa las trazas y añade evaluaciones live con juicio humano. No hay conexión a un almacén productivo ni herramientas de escritura.
+## Límites del agente y controles humanos
+
+La búsqueda local es una simulación lexical con sinónimos explícitos; no predice la relevancia de un vector store gestionado. El harness offline valida filtros, contrato, citas y abstención, pero no demuestra que el texto citado implique semánticamente cada afirmación. La evaluación live del modelo sigue pendiente y requiere revisión humana de trazas. El agente no tiene acceso a un almacén productivo ni herramientas de escritura. Toda decisión P1 conserva `needs_human_approval=true`; una persona debe validar las fuentes y autorizar cualquier acción fuera del agente.

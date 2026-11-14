@@ -27,6 +27,8 @@ def test_development_run_writes_a_complete_trace_for_every_case(tmp_path, monkey
     trace_dir = run_retrieval_evals.RESULTS_DIR / "retrieval_traces" / report["run_id"]
 
     assert len(list(trace_dir.glob("*.json"))) == 10
+    assert report["quality_metrics"]["recall_at_3_pct"] >= 90.0
+    assert all(report["quality_metrics"]["criteria_met"].values())
     for result in report["cases"]:
         trace = json.loads((trace_dir / f"{result['id']}.json").read_text(encoding="utf-8"))
         assert trace["initial_query"]
