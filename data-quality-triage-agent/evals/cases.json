@@ -50,7 +50,9 @@
           "volume_change_pct": -4,
           "strong_volume_drop": false,
           "moderate_degradation": false,
-          "complete": true
+          "complete": true,
+          "null_count": 0,
+          "duplicate_count": 0
         },
         "freshness": {
           "delay_seconds": 300,
@@ -98,7 +100,7 @@
         "severity": "P2",
         "needs_human_approval": false,
         "must_include": [
-          "regresión relevante",
+          "regresión de esquema relevante",
           "despliegue temporalmente cercano como contexto"
         ],
         "must_not_claim": [
@@ -395,7 +397,7 @@
         "severity": "P1",
         "needs_human_approval": true,
         "must_include": [
-          "retraso >= 3x SLA",
+          "retraso de frescura >= 3x SLA",
           "causa raíz no determinada"
         ],
         "must_not_claim": [
