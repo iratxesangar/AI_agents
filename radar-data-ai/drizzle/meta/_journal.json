@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794600000000,
+      "tag": "0000_offer_history",
+      "breakpoints": true
+    }
+  ]
+}

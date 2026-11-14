@@ -1,5 +1,26 @@
 # AI Agents
 
+Portfolio y laboratorio de proyectos de agentes IA y automatización. Cada proyecto mantiene su código, dependencias y documentación en una carpeta independiente.
+
+| Proyecto | Carpeta | Estado |
+|---|---|---|
+| RevisaViajes | [revisaviajes/](revisaviajes/) | Prototipo documental con motor offline y revisión opcional mediante API |
+| Radar Data & AI | [radar-data-ai/](radar-data-ai/) | Copia del código del Site privado; herramientas MCP e historial persistente |
+| Data Quality Triage Agent | [data-quality-triage-agent/](data-quality-triage-agent/) | Estructura inicial; lógica y evaluaciones pendientes |
+
+La integración no despliega servicios ni mueve bases de datos o tareas programadas. Consulta [MIGRATION.md](MIGRATION.md) para conocer repositorios, ramas y commits de origen. El historial anterior de los proyectos importados se conserva en sus repositorios originales.
+
+## Validación por proyecto
+
+```bash
+(cd revisaviajes && python -m unittest discover -s tests)
+(cd radar-data-ai && npm run build && npm run validate)
+```
+
+GitHub Actions mantiene las pruebas de RevisaViajes y valida el artefacto de Radar. El proyecto de calidad de datos todavía no tiene pruebas funcionales.
+
+## RevisaViajes: instrucciones de uso
+
 ## Inicio recomendado: sin API
 
 ```bash
