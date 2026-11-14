@@ -1,0 +1,42 @@
+{
+  "orders_critical": {
+    "metadata": {
+      "dataset_id": "orders_critical",
+      "name": "Pedidos diarios",
+      "is_critical": true
+    },
+    "quality_metrics": {
+      "null_count": 12,
+      "duplicate_count": 0,
+      "relevant_schema_regression": false,
+      "strong_volume_drop": false,
+      "moderate_degradation": true,
+      "volume_change_pct": -4.0
+    },
+    "freshness": {
+      "delay_seconds": 10800,
+      "sla_seconds": 3600,
+      "critical_flow_unavailable": false
+    }
+  },
+  "support_events": {
+    "metadata": {
+      "dataset_id": "support_events",
+      "name": "Eventos de soporte",
+      "is_critical": false
+    },
+    "quality_metrics": {
+      "null_count": 15,
+      "duplicate_count": 2,
+      "relevant_schema_regression": false,
+      "strong_volume_drop": false,
+      "moderate_degradation": true,
+      "volume_change_pct": -8.0
+    },
+    "freshness": {
+      "delay_seconds": 5400,
+      "sla_seconds": 3600,
+      "critical_flow_unavailable": false
+    }
+  }
+}
