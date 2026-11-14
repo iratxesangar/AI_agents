@@ -2,7 +2,6 @@
 import argparse
 import copy
 import json
-import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -254,12 +253,11 @@ def run_suite(
             selected_baseline.read_text(encoding="utf-8")
         ).get("metrics")
 
-    with tempfile.TemporaryDirectory(prefix="dq-eval-") as temp_dir:
-        temporary_trace_root = Path(temp_dir)
-        results = [
-            _evaluate_case(case, temporary_trace_root / case["id"])
-            for case in cases
-        ]
+    trace_root = output_path.parent / "traces" / run_id
+    results = [
+        _evaluate_case(case, trace_root / case["id"])
+        for case in cases
+    ]
 
     current_metrics = _metrics(results, cases)
     report = {
