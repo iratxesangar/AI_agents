@@ -1,73 +1,69 @@
 # Data Quality Triage Agent
 
-Prototipo local de agente de triaje de calidad de datos, integrado en el monorepo AI_agents. Esta primera versión usa fixtures sintéticos y no se conecta a almacenes de datos ni a un LLM.
+Prototipo local y determinista de triaje de calidad, dentro del monorepo AI_agents. Usa fixtures sintéticos, sin conexión a almacenes ni a un LLM.
 
-## Ejecutar
+## Ejecutar el agente
 
-Desde esta carpeta del repositorio:
+Desde esta carpeta:
 
 ```bash
 python -m pip install -r requirements.txt
 python -m app.agent --dataset-id orders_critical --request "Analiza la frescura y calidad de pedidos"
 ```
 
-También hay un segundo caso sintético:
+La salida se valida como `TriageDecision`. Cada ejecución escribe su solicitud, herramientas y salida en `traces/<trace_id>.json`.
 
-```bash
-python -m app.agent --dataset-id support_events
-```
+## Ejecutar evaluaciones
 
-El comando imprime una salida validada como `TriageDecision`. Cada ejecución guarda un JSON independiente en `traces/<trace_id>.json`, con la solicitud, las tres llamadas y sus argumentos, marcas de tiempo, resultados o errores y la salida final. El directorio local `traces/` está excluido de Git porque las trazas pueden contener el texto de las solicitudes. No incluyas secretos ni datos personales en ellas.
-
-## Herramientas de solo lectura
-
-El agente llama en este orden a las tres herramientas de `app/tools.py`:
-
-1. `read_dataset_metadata`: nombre e indicador de criticidad.
-2. `read_quality_metrics`: nulos, duplicados, regresión de esquema y volumen.
-3. `read_freshness_status`: retraso, SLA e indisponibilidad del flujo crítico.
-
-Las herramientas solo leen `fixtures/sample_data.json`. El agente bloquea nombres de herramienta fuera de la lista permitida y registra errores de lectura en la traza. No tiene herramientas de escritura ni remediación. La clasificación usa las reglas deterministas de `app/policy.py`; toda salida P1 marca `needs_human_approval=true`.
-
-## Política de severidad
-
-Se aplica la precedencia P1 → P2 → P3 → INFO:
-
-- **P1:** flujo crítico indisponible, o dataset crítico con retraso de frescura igual o superior a 3× su SLA.
-- **P2:** retraso igual o superior a 1,5× el SLA, regresión de esquema relevante o caída fuerte de volumen.
-- **P3:** degradación moderada que requiere seguimiento sin escalado inmediato.
-- **INFO:** alerta no accionable, evidencia insuficiente o sin criterios de escalado.
-
-Los límites son inclusivos. Si se cumplen varios criterios, prevalece la severidad más alta. El ratio de frescura solo se calcula cuando se conocen el retraso y un SLA positivo.
-
-## Conjunto de evaluación
-
-`evals/cases.json` contiene 12 casos estructurados fuera de `AGENT_INSTRUCTIONS`, con entradas y expectativas de severidad, aprobación humana y comportamiento. Cubre frescura crítica, volumen leve, despliegue y esquema, evidencia incompleta o contradictoria, SLA de dataset no crítico, duplicados, prompt injection en metadatos, owner ausente, fallo de herramienta, valores inválidos y causa raíz desconocida. Este archivo es un corpus de evaluación independiente; las expectativas de esos 12 escenarios todavía no se ejecutan automáticamente contra el agente.
-
-## Pruebas
-
-Instala las dependencias de desarrollo y ejecuta la suite desde esta carpeta:
+Instala dependencias de desarrollo y ejecuta las pruebas:
 
 ```bash
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-La suite comprueba tres niveles: unitarias (política, herramientas y validación Pydantic), integración (llamadas y trazas del agente, incluido el fallo de métricas) y estructura/cobertura del corpus independiente de evaluación.
+Ejecuta los 12 casos de comportamiento:
 
-## Instrucciones y guardrails
+```bash
+python -m evals.run_evals
+```
 
-Las reglas del agente están en `app/agent.py`: consulta de fuentes antes de clasificar, separación de hechos/hipótesis/recomendaciones, no afirmación de causas raíz sin evidencia, protección de información sensible y prohibición de acciones de escritura. El flujo mínimo valida la lista permitida antes de cada llamada y comprueba el formato de la respuesta después.
+El evaluador aplica los casos estructurados de `evals/cases.json` al flujo real del agente con herramientas simuladas de solo lectura. Calcula la validez del esquema, exactitud de severidad, aprobación P1, afirmaciones de causa raíz no permitidas, herramientas de escritura y resistencia al caso de prompt injection. Imprime una tabla Antes/Después y guarda el reporte, junto con una traza por caso, localmente en `evals/results/`. La siguiente ejecución compara automáticamente con el último reporte; también se puede indicar otro con `--baseline ruta.json`. Resultados y trazas de evaluación están excluidos de Git.
 
-## Estructura
+## Metas iniciales de comportamiento
 
-- `app/agent.py`: flujo del agente, salida Pydantic y escritura de trazas.
-- `app/tools.py`: las tres herramientas de solo lectura.
-- `app/schemas.py`: contrato Pydantic de salida.
-- `app/policy.py`: clasificación determinista.
-- `fixtures/sample_data.json`: datasets sintéticos para ejecutar el ejemplo.
-- `evals/cases.json`: casos de evaluación independientes del prompt.
-- `tests/`: pruebas unitarias, de integración y de estructura del corpus.
-- `traces/`: trazas JSON locales generadas en tiempo de ejecución; excluidas de Git.
+| Métrica | Meta inicial |
+| --- | ---: |
+| Salidas válidas según esquema | 100% |
+| Severidad correcta | ≥ 90% |
+| P1 con aprobación humana | 100% |
+| Causas afirmadas sin evidencia | 0 |
+| Acciones de escritura ejecutadas | 0 |
+| Casos de prompt injection bloqueados/ignorados | 100% |
 
-La integración con fuentes reales, redacción automática de datos sensibles y guardrails de ejecución más amplios quedan fuera de esta primera versión. Consulta [el registro de migración](../MIGRATION.md) para localizar el historial original.
+El primer run reporta “N/A” en Antes porque no había resultados de evaluación automatizada guardados; a partir del segundo, compara con la ejecución anterior. El corpus de 12 casos se ejecuta de forma determinista, sin inferencia de un modelo.
+
+## Iteración de mejora
+
+Cuando un caso falla, aplicar en este orden:
+
+1. Corregir política de severidad o contrato de herramientas.
+2. Actualizar instrucciones con un contraejemplo concreto.
+3. Ajustar el esquema Pydantic.
+4. Añadir el fallo como caso independiente en `evals/cases.json`.
+5. Reejecutar todas las pruebas y evaluaciones y comparar métricas.
+
+Las instrucciones incluyen un contraejemplo para tratar las descripciones de datasets como datos no confiables. `TriageDecision` prohíbe campos extra, limita confidencias a 0–1 y rechaza P1 sin aprobación humana.
+
+## Diseño
+
+- `app/agent.py`: orquestación de solo lectura, triaje y trazas.
+- `app/tools.py`: herramientas para metadatos, métricas y frescura.
+- `app/schemas.py`: contrato Pydantic estricto de salida.
+- `app/policy.py`: reglas deterministas P1/P2/P3/INFO.
+- `fixtures/sample_data.json`: datasets de demostración.
+- `evals/cases.json`: corpus fuera del prompt, con entradas y expectativas.
+- `evals/run_evals.py`: métricas y comparación Antes/Después.
+- `tests/`: unitarias, integración y validación del corpus.
+
+La integración a fuentes reales, la redacción automática de datos sensibles y las acciones con impacto productivo quedan fuera de esta versión.
