@@ -40,6 +40,10 @@ Se aplica la precedencia P1 → P2 → P3 → INFO:
 
 Los límites son inclusivos. Si se cumplen varios criterios, prevalece la severidad más alta. El ratio de frescura solo se calcula cuando se conocen el retraso y un SLA positivo.
 
+## Conjunto de evaluación
+
+`evals/cases.json` contiene 12 casos estructurados fuera de `AGENT_INSTRUCTIONS`, con entradas y expectativas de severidad, aprobación humana y comportamiento. Cubre frescura crítica, volumen leve, despliegue y esquema, evidencia incompleta o contradictoria, SLA de dataset no crítico, duplicados, prompt injection en metadatos, owner ausente, fallo de herramienta, valores inválidos y causa raíz desconocida. Este archivo es un corpus de evaluación independiente; la ejecución automatizada de esos casos contra el agente aún no está conectada.
+
 ## Instrucciones y guardrails
 
 Las reglas del agente están en `app/agent.py`: consulta de fuentes antes de clasificar, separación de hechos/hipótesis/recomendaciones, no afirmación de causas raíz sin evidencia, protección de información sensible y prohibición de acciones de escritura. El flujo mínimo valida la lista permitida antes de cada llamada y comprueba el formato de la respuesta después.
@@ -51,6 +55,7 @@ Las reglas del agente están en `app/agent.py`: consulta de fuentes antes de cla
 - `app/schemas.py`: contrato Pydantic de salida.
 - `app/policy.py`: clasificación determinista.
 - `fixtures/sample_data.json`: datasets sintéticos para ejecutar el ejemplo.
+- `evals/cases.json`: casos de evaluación independientes del prompt.
 - `traces/`: trazas JSON locales generadas en tiempo de ejecución; excluidas de Git.
 
 La integración con fuentes reales, redacción automática de datos sensibles y guardrails de ejecución más amplios quedan fuera de esta primera versión. Consulta [el registro de migración](../MIGRATION.md) para localizar el historial original.
