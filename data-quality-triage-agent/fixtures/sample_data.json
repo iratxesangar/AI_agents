@@ -19,6 +19,27 @@
       "critical_flow_unavailable": false
     }
   },
+  "orders_daily": {
+    "metadata": {
+      "dataset_id": "orders_daily",
+      "name": "Pedidos diarios",
+      "is_critical": false,
+      "owner": "order-data"
+    },
+    "quality_metrics": {
+      "null_count": 0,
+      "duplicate_count": 0,
+      "relevant_schema_regression": false,
+      "strong_volume_drop": false,
+      "moderate_degradation": false,
+      "volume_change_pct": 0.0
+    },
+    "freshness": {
+      "delay_seconds": 0,
+      "sla_seconds": 3600,
+      "critical_flow_unavailable": false
+    }
+  },
   "support_events": {
     "metadata": {
       "dataset_id": "support_events",
