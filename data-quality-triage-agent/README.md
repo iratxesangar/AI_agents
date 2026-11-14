@@ -1,10 +1,37 @@
 # Data Quality Triage Agent
 
-Proyecto de agente de triaje de calidad de datos, integrado en el monorepo AI_agents.
+Prototipo local de agente de triaje de calidad de datos, integrado en el monorepo AI_agents. Esta primera versión usa fixtures sintéticos y no se conecta a almacenes de datos ni a un LLM.
+
+## Ejecutar
+
+Desde esta carpeta del repositorio:
+
+```bash
+python -m pip install -r requirements.txt
+python -m app.agent --dataset-id orders_critical --request "Analiza la frescura y calidad de pedidos"
+```
+
+También hay un segundo caso sintético:
+
+```bash
+python -m app.agent --dataset-id support_events
+```
+
+El comando imprime una salida validada como `TriageDecision`. Cada ejecución guarda un JSON independiente en `traces/<trace_id>.json`, con la solicitud, las tres llamadas y sus argumentos, marcas de tiempo, resultados o errores y la salida final. El directorio local `traces/` está excluido de Git porque las trazas pueden contener el texto de las solicitudes. No incluyas secretos ni datos personales en ellas.
+
+## Herramientas de solo lectura
+
+El agente llama en este orden a las tres herramientas de `app/tools.py`:
+
+1. `read_dataset_metadata`: nombre e indicador de criticidad.
+2. `read_quality_metrics`: nulos, duplicados, regresión de esquema y volumen.
+3. `read_freshness_status`: retraso, SLA e indisponibilidad del flujo crítico.
+
+Las herramientas solo leen `fixtures/sample_data.json`. El agente bloquea nombres de herramienta fuera de la lista permitida y registra errores de lectura en la traza. No tiene herramientas de escritura ni remediación. La clasificación usa las reglas deterministas de `app/policy.py`; toda salida P1 marca `needs_human_approval=true`.
 
 ## Política de severidad
 
-La clasificación se implementa en `app/policy.py`; el prompt no es la fuente de verdad. Se aplica la precedencia P1 → P2 → P3 → INFO:
+Se aplica la precedencia P1 → P2 → P3 → INFO:
 
 - **P1:** flujo crítico indisponible, o dataset crítico con retraso de frescura igual o superior a 3× su SLA.
 - **P2:** retraso igual o superior a 1,5× el SLA, regresión de esquema relevante o caída fuerte de volumen.
@@ -15,34 +42,15 @@ Los límites son inclusivos. Si se cumplen varios criterios, prevalece la severi
 
 ## Instrucciones y guardrails
 
-Las reglas no negociables del agente están en `app/agent.py`. Incluyen consulta previa de metadatos y métricas, separación de hechos/hipótesis/recomendaciones, prohibición de llamadas de escritura o remediación, protección de datos sensibles y aprobación humana obligatoria para P1. También especifican validaciones antes y después de cada llamada a herramientas.
-
-## Ejemplo de clasificación
-
-```python
-from app.policy import classify_severity
-
-result = classify_severity(
-    dataset_critical=True,
-    freshness_delay_s=180,
-    freshness_sla_s=60,
-)
-print(result.severity.value)  # P1
-print(result.reasons)
-```
-
-## Estado actual
-
-La política de severidad y las instrucciones del agente están definidas. El resto de la estructura y las métricas siguen siendo iniciales: no hay todavía herramientas de lectura funcionales, métricas calculadas ni evaluaciones implementadas.
+Las reglas del agente están en `app/agent.py`: consulta de fuentes antes de clasificar, separación de hechos/hipótesis/recomendaciones, no afirmación de causas raíz sin evidencia, protección de información sensible y prohibición de acciones de escritura. El flujo mínimo valida la lista permitida antes de cada llamada y comprueba el formato de la respuesta después.
 
 ## Estructura
 
-- `app/agent.py`: instrucciones del agente y guardrails para llamadas a herramientas.
-- `app/tools.py`: herramientas de lectura de métricas (pendientes).
-- `app/schemas.py`: contratos Pydantic de entrada y salida.
-- `app/policy.py`: clasificación determinista de severidad.
-- `fixtures/`: datos sintéticos, actualmente vacíos.
-- `evals/`: casos y ejecutor, actualmente sin implementar.
-- `tests/`: espacio reservado para pruebas.
+- `app/agent.py`: flujo del agente, salida Pydantic y escritura de trazas.
+- `app/tools.py`: las tres herramientas de solo lectura.
+- `app/schemas.py`: contrato Pydantic de salida.
+- `app/policy.py`: clasificación determinista.
+- `fixtures/sample_data.json`: datasets sintéticos para ejecutar el ejemplo.
+- `traces/`: trazas JSON locales generadas en tiempo de ejecución; excluidas de Git.
 
-Objetivo previsto: detectar nulos y duplicados, explicar las incidencias y proponer acciones sin modificar datos. Consulta [el registro de migración](../MIGRATION.md) para localizar el historial original.
+La integración con fuentes reales, redacción automática de datos sensibles y guardrails de ejecución más amplios quedan fuera de esta primera versión. Consulta [el registro de migración](../MIGRATION.md) para localizar el historial original.
