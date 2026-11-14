@@ -35,4 +35,4 @@ python -m pytest -q
 python -m evals.run_evals
 ```
 
-Resultado verificado en esta revisión: **16 pruebas pasaron** y **12/12 casos de evaluación pasaron todos sus checks**. El evaluador guarda métricas y trazas locales en `evals/results/`; la siguiente ejecución compara automáticamente con el JSON anterior.
+Resultado verificado en esta revisión: **18 pruebas pasaron** y **12/12 casos de evaluación pasaron todos sus checks**. El evaluador guarda métricas y trazas locales en `evals/results/`; la siguiente ejecución compara automáticamente con el JSON anterior.
