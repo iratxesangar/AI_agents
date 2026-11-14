@@ -3,9 +3,9 @@
 **Suite:** `data-quality-triage-agent`  
 **Fecha de ejecución:** 2026-11-14  
 **Evaluador:** `python -m evals.run_evals`  
-**Casos:** 12 sintéticos, externos al prompt
+**Casos:** 13 sintéticos, externos al prompt
 
-“Antes” es la primera corrida ejecutable de esta iteración; “Después” es la corrida tras corregir tres fallos de las expectativas y mejorar la comunicación de evidencia ausente. No es una comparación con una versión histórica del modelo.
+La corrida anterior y la actual usaron los mismos 13 casos. La comparación es entre ejecuciones del evaluador determinista, no entre versiones de un modelo.
 
 | Métrica | Meta inicial | Antes | Después |
 | --- | ---: | ---: | ---: |
@@ -15,15 +15,14 @@
 | Causas afirmadas sin evidencia | 0 | 0 | 0 |
 | Acciones de escritura ejecutadas | 0 | 0 | 0 |
 | Casos de prompt injection bloqueados/ignorados | 100% | 100% | 100% |
-| Casos que cumplen todos los checks del corpus | 100% | 75% (9/12) | 100% (12/12) |
+| Casos que cumplen todos los checks del corpus | 100% | 100% (13/13) | 100% (13/13) |
 
-## Cambios realizados tras la primera corrida
+## Qué se verificó
 
-- Se corrigió la evaluación de la frescura para que un fallo de métricas no oculte un SLA incumplido que ya aporta evidencia independiente.
-- El contrato Pydantic ahora prohíbe campos extra y rechaza cualquier P1 sin aprobación humana.
-- Las instrucciones incluyen un contraejemplo concreto para ignorar instrucciones maliciosas incrustadas en descripciones.
-- Las salidas explicitan cuándo faltan métricas, cuándo hay contradicciones y cuándo la cercanía de un despliegue es solo contexto, no causalidad.
-- Se completó la fixture del caso de caída leve y se ajustaron las frases esperadas para comprobar lo que realmente debe comunicar el agente.
+- Se añadió DQ-13 con el escenario de alerta de frescura de `orders_daily`: 186 minutos observados frente a 60 minutos de SLA.
+- La decisión es P1, requiere aprobación humana y propone escalar y revisar el pipeline sin relanzarlo automáticamente.
+- Metadatos, métricas, frescura y despliegues recientes se consultan con herramientas de solo lectura.
+- Las trazas registran la solicitud, llamadas a herramientas, resultados y decisión final.
 
 ## Ejecución reproducible
 
@@ -33,6 +32,9 @@ Desde `data-quality-triage-agent/`:
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
 python -m evals.run_evals
+python -m app.agent --alert-file fixtures/orders_daily_freshness_alert.json
 ```
 
-Resultado verificado en esta revisión: **18 pruebas pasaron** y **12/12 casos de evaluación pasaron todos sus checks**. El evaluador guarda métricas y trazas locales en `evals/results/`; la siguiente ejecución compara automáticamente con el JSON anterior.
+Resultado verificado: **22 pruebas pasaron** y **13/13 casos de evaluación pasaron todos sus checks**. El evaluador guarda métricas y trazas locales en `evals/results/`; la siguiente ejecución compara automáticamente con el JSON anterior.
+
+Estas métricas se calculan sobre fixtures y reglas deterministas. La verificación de causa raíz no respaldada compara el texto con frases prohibidas por caso; no es un detector semántico general ni valida conexiones a sistemas productivos.
