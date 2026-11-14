@@ -29,3 +29,30 @@ def test_decision_rejects_confidence_outside_zero_one(confidence):
             needs_human_approval=False,
             confidence=confidence,
         )
+
+
+def test_decision_rejects_p1_without_human_approval():
+    with pytest.raises(ValidationError, match="requiere aprobación humana"):
+        TriageDecision(
+            severity="P1",
+            summary="Incidencia crítica",
+            evidence=[],
+            hypotheses=[],
+            recommended_actions=[],
+            needs_human_approval=False,
+            confidence=0.9,
+        )
+
+
+def test_decision_rejects_unmodeled_fields():
+    with pytest.raises(ValidationError):
+        TriageDecision(
+            severity="INFO",
+            summary="Sin incidencia",
+            evidence=[],
+            hypotheses=[],
+            recommended_actions=[],
+            needs_human_approval=False,
+            confidence=0.9,
+            root_cause="dato no permitido",
+        )
