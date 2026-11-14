@@ -2,7 +2,7 @@
 
 ## Resultado
 
-La última ejecución offline pasó **37/37 pruebas**, **13/13 casos** del triaje de la práctica 1 y **5/5 casos** de investigación documental. La suite documental no invoca el LLM: prueba la recuperación local simulada, el filtrado por metadatos y tiempo, el contrato Pydantic, la validación de citas y la abstención.
+La última ejecución offline pasó **38/38 pruebas**, **13/13 casos** del triaje de la práctica 1 y **5/5 casos** de investigación documental. La suite documental no invoca el LLM: prueba la recuperación local simulada, el filtrado por metadatos y tiempo, el contrato Pydantic, la validación de citas y la abstención.
 
 | Métrica documental | Resultado |
 |---|---:|

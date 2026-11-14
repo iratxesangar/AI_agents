@@ -15,6 +15,7 @@ from app.knowledge import (
     validate_grounding,
 )
 from app.knowledge_agent import (
+    INVESTIGATION_INSTRUCTIONS,
     build_metadata_filters,
     investigate_with_documents,
     search_knowledge,
@@ -122,7 +123,22 @@ def test_metadata_filter_includes_active_scope_review_and_temporal_bounds():
         "status", "last_reviewed", "valid_from", "valid_to"
     }
     assert any("dataset" in str(clause) for clause in clauses)
+    assert {clause.get("value") for clause in clauses if clause.get("key") == "status"} == {"active"}
     assert len(clauses) == 8
+
+
+def test_investigation_instructions_cover_non_negotiable_safety_rules():
+    for required in (
+        "Recupera y revisa evidencia",
+        "source_id que search_knowledge() haya devuelto",
+        'metadata.status="deprecated"',
+        'status="insufficient_evidence"',
+        "findings son hechos documentados",
+        "triage.hypotheses",
+        "corpus autorizado",
+        "No ejecutes acciones de producción",
+    ):
+        assert required in INVESTIGATION_INSTRUCTIONS
 
 
 def test_retrieval_rejects_invalid_source_types_and_limits():
