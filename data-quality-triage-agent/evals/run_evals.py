@@ -102,12 +102,22 @@ def _evaluate_case(
     request = case["input"].get("request", "Evalúa la incidencia.")
     trace_dir.mkdir(parents=True, exist_ok=True)
     try:
+        alert_input = case["input"].get("alert")
+        if not isinstance(alert_input, dict) or not {
+            "dataset",
+            "environment",
+            "alert_type",
+            "observed_value_minutes",
+            "expected_sla_minutes",
+            "timestamp",
+        } <= set(alert_input):
+            alert_input = None
         decision_obj = run_triage_with_tools(
             request=request,
             dataset_id=dataset_id,
             tool_registry=_case_tool_registry(case),
             trace_dir=trace_dir,
-            alert=case["input"].get("alert"),
+            alert=alert_input,
         )
         decision = decision_obj.model_dump(mode="json")
         trace_files = list(trace_dir.glob("*.json"))
