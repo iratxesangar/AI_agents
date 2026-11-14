@@ -66,11 +66,6 @@ def classify_severity(
     if p2_reasons:
         return SeverityResult(Severity.P2, tuple(p2_reasons))
 
-    if moderate_degradation:
-        return SeverityResult(
-            Severity.P3, ("degradación moderada; requiere seguimiento",)
-        )
-
     if not actionable or not evidence_sufficient:
         reason = (
             "alerta no accionable"
@@ -78,6 +73,11 @@ def classify_severity(
             else "evidencia insuficiente para clasificar una incidencia"
         )
         return SeverityResult(Severity.INFO, (reason,))
+
+    if moderate_degradation:
+        return SeverityResult(
+            Severity.P3, ("degradación moderada; requiere seguimiento",)
+        )
 
     return SeverityResult(
         Severity.INFO, ("no se detectan criterios de escalado",)
