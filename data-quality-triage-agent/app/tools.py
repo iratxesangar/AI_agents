@@ -1,4 +1,4 @@
-"""Tres herramientas locales estrictamente de solo lectura para el prototipo."""
+"""Herramientas locales estrictamente de solo lectura para el prototipo."""
 import json
 from pathlib import Path
 from typing import Any
@@ -16,7 +16,7 @@ def _read_fixture(dataset_id: str) -> dict[str, Any]:
 
 
 def read_dataset_metadata(dataset_id: str) -> dict[str, Any]:
-    """Devuelve metadatos no sensibles y criticidad del dataset."""
+    """Devuelve criticidad, tier, owner, SLA y consumidores permitidos."""
     dataset = _read_fixture(dataset_id)
     return dict(dataset["metadata"])
 
@@ -28,13 +28,34 @@ def read_quality_metrics(dataset_id: str) -> dict[str, Any]:
 
 
 def read_freshness_status(dataset_id: str) -> dict[str, Any]:
-    """Devuelve frescura y estado de flujo, sin modificar el dataset."""
+    """Devuelve retraso y SLA de frescura, sin modificar el dataset."""
     dataset = _read_fixture(dataset_id)
     return dict(dataset["freshness"])
+
+
+def read_recent_deployments(
+    dataset_id: str,
+    lookback_hours: int = 6,
+) -> dict[str, Any]:
+    """Consulta despliegues recientes del fixture; no inicia ni revierte despliegues."""
+    if lookback_hours <= 0:
+        raise ValueError("lookback_hours debe ser positivo")
+    dataset = _read_fixture(dataset_id)
+    deployments = [
+        item
+        for item in dataset.get("recent_deployments", [])
+        if item.get("hours_ago", lookback_hours + 1) <= lookback_hours
+    ]
+    return {
+        "lookback_hours": lookback_hours,
+        "deployments": deployments,
+        "checked": True,
+    }
 
 
 READ_ONLY_TOOLS = {
     "read_dataset_metadata": read_dataset_metadata,
     "read_quality_metrics": read_quality_metrics,
     "read_freshness_status": read_freshness_status,
+    "read_recent_deployments": read_recent_deployments,
 }
