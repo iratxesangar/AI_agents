@@ -33,3 +33,22 @@ jobs:
         working-directory: radar-data-ai
       - run: npm run validate
         working-directory: radar-data-ai
+
+  data-quality-triage-agent:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -r requirements-dev.txt
+        working-directory: data-quality-triage-agent
+      - run: python -m pytest -q
+        working-directory: data-quality-triage-agent
+      - run: python -m evals.run_evals
+        working-directory: data-quality-triage-agent
+      - run: python -m evals.run_knowledge_evals
+        working-directory: data-quality-triage-agent

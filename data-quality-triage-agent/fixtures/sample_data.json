@@ -3,6 +3,7 @@
     "metadata": {
       "dataset_id": "orders_critical",
       "name": "Pedidos críticos",
+      "domain": "commerce",
       "is_critical": true,
       "owner": "data-platform"
     },
@@ -25,6 +26,7 @@
     "metadata": {
       "dataset_id": "orders_daily",
       "name": "Pedidos diarios",
+      "domain": "commerce",
       "is_critical": true,
       "tier": "gold",
       "owner": "data-platform",
@@ -56,6 +58,7 @@
     "metadata": {
       "dataset_id": "support_events",
       "name": "Eventos de soporte",
+      "domain": "support",
       "is_critical": false,
       "owner": "support-data"
     },

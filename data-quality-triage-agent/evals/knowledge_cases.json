@@ -1,0 +1,48 @@
+{
+  "suite": "data-quality-knowledge-investigation",
+  "version": 2,
+  "description": "Casos offline de recuperación, filtros de metadatos y grounding; independientes de las instrucciones del agente.",
+  "cases": [
+    {
+      "id": "K-01",
+      "name": "Alerta P1 orders_daily con cuatro fuentes",
+      "filters": {"dataset_id": "orders_daily", "domain": "commerce", "environment": "production", "incident_type": "freshness", "as_of": "2026-11-06T08:00:00+00:00"},
+      "query": "orders_daily production freshness P1 SLA upstream pipeline deployment on-call",
+      "expected_status": "supported",
+      "expected_source_types": ["catalog", "runbook", "deployment_history", "escalation"]
+    },
+    {
+      "id": "K-02",
+      "name": "Dataset no incluido en catálogo",
+      "filters": {"dataset_id": "unknown_dataset", "domain": "unknown", "environment": "production", "incident_type": "freshness", "as_of": "2026-11-06T08:00:00+00:00"},
+      "query": "unknown_dataset production freshness P1",
+      "expected_status": "abstained",
+      "missing_source_types": ["catalog", "deployment_history"]
+    },
+    {
+      "id": "K-03",
+      "name": "Entorno staging con runbook genérico pero sin catálogo, despliegues ni escalado",
+      "filters": {"dataset_id": "orders_daily", "domain": "commerce", "environment": "staging", "incident_type": "freshness", "as_of": "2026-11-06T08:00:00+00:00"},
+      "query": "orders_daily staging freshness pipeline",
+      "expected_status": "abstained",
+      "missing_source_types": ["catalog", "deployment_history", "escalation"]
+    },
+    {
+      "id": "K-04",
+      "name": "Regresión de esquema de payment_events con fuentes aplicables",
+      "filters": {"dataset_id": "payment_events", "domain": "payments", "environment": "production", "incident_type": "schema", "as_of": "2026-11-06T08:00:00+00:00"},
+      "query": "payment_events payments schema regression deployment escalation",
+      "expected_status": "supported",
+      "expected_source_types": ["catalog", "runbook", "deployment_history", "escalation"]
+    },
+    {
+      "id": "K-05",
+      "name": "Un snapshot de despliegues no se reutiliza fuera de su corte temporal",
+      "filters": {"dataset_id": "orders_daily", "domain": "commerce", "environment": "production", "incident_type": "freshness", "as_of": "2026-11-14T08:00:00+00:00"},
+      "query": "orders_daily production freshness P1 SLA upstream deployment on-call",
+      "expected_status": "supported",
+      "expected_source_types": ["catalog", "runbook", "deployment_history", "escalation"],
+      "excluded_source_ids": ["DEP-ORDERS-SNAPSHOT-001"]
+    }
+  ]
+}

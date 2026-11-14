@@ -496,6 +496,9 @@ def _run_triage(
     tool_registry: ToolRegistry,
     trace_dir: str | Path | None,
     alert: AlertInput | None = None,
+    knowledge: bool = False,
+    environment: str = "production",
+    incident_type: str = "quality",
 ) -> TriageDecision:
     if set(tool_registry) - READ_ONLY_TOOL_NAMES:
         raise PermissionError("Registro rechazado: contiene herramientas no permitidas")
@@ -510,7 +513,21 @@ def _run_triage(
     decision = _build_decision(
         metadata, metrics, freshness, deployments, failed_tools, alert
     )
+    if knowledge:
+        from app.knowledge_agent import investigate_with_documents
+
+        decision.investigation = investigate_with_documents(
+            request=request,
+            dataset_id=dataset_id,
+            domain=str((metadata or {}).get("domain", "*")),
+            environment=alert.environment if alert else environment,
+            incident_type=alert.alert_type if alert else incident_type,
+            as_of=alert.timestamp.isoformat() if alert else None,
+            triage=decision,
+            trace_calls=calls,
+        )
     trace_request: dict[str, Any] = {"text": request, "dataset_id": dataset_id}
+    trace_request["knowledge_investigation"] = knowledge
     if alert:
         trace_request["alert"] = alert.model_dump(mode="json")
     trace = {
@@ -536,9 +553,21 @@ def run_triage(
     request: str,
     dataset_id: str,
     trace_dir: str | Path | None = None,
+    *,
+    knowledge: bool = False,
+    environment: str = "production",
+    incident_type: str = "quality",
 ) -> TriageDecision:
-    """Ejecuta las herramientas de lectura configuradas para el prototipo."""
-    return _run_triage(request, dataset_id, READ_ONLY_TOOLS, trace_dir)
+    """Ejecuta el triaje y, opcionalmente, la investigación documental con el SDK."""
+    return _run_triage(
+        request,
+        dataset_id,
+        READ_ONLY_TOOLS,
+        trace_dir,
+        knowledge=knowledge,
+        environment=environment,
+        incident_type=incident_type,
+    )
 
 
 def run_triage_with_tools(
@@ -558,6 +587,8 @@ def run_triage_with_tools(
 def run_alert_triage(
     alert: AlertInput | dict[str, Any],
     trace_dir: str | Path | None = None,
+    *,
+    knowledge: bool = False,
 ) -> TriageDecision:
     """Valida una alerta estructurada, consulta solo herramientas de lectura y clasifica."""
     alert_model = AlertInput.model_validate(alert) if isinstance(alert, dict) else alert
@@ -571,6 +602,7 @@ def run_alert_triage(
         READ_ONLY_TOOLS,
         trace_dir,
         alert_model,
+        knowledge=knowledge,
     )
 
 
@@ -584,14 +616,40 @@ def main() -> None:
         help="Ruta a una alerta JSON validada como AlertInput.",
     )
     parser.add_argument("--trace-dir", type=Path, default=None)
+    parser.add_argument(
+        "--knowledge",
+        action="store_true",
+        help=(
+            "Activa investigación con File Search; requiere OPENAI_API_KEY y "
+            "OPENAI_VECTOR_STORE_ID. Sin evidencia suficiente, se abstiene."
+        ),
+    )
+    parser.add_argument(
+        "--environment", default="production",
+        choices=("production", "staging", "development"),
+    )
+    parser.add_argument(
+        "--incident-type",
+        default="quality",
+        choices=("freshness", "volume", "schema", "quality"),
+    )
     args = parser.parse_args()
     if args.alert_file:
         alert = AlertInput.model_validate_json(
             args.alert_file.read_text(encoding="utf-8")
         )
-        decision = run_alert_triage(alert, args.trace_dir)
+        decision = run_alert_triage(
+            alert, args.trace_dir, knowledge=args.knowledge
+        )
     else:
-        decision = run_triage(args.request, args.dataset_id, args.trace_dir)
+        decision = run_triage(
+            args.request,
+            args.dataset_id,
+            args.trace_dir,
+            knowledge=args.knowledge,
+            environment=args.environment,
+            incident_type=args.incident_type,
+        )
     print(json.dumps(_as_json_dict(decision), ensure_ascii=False, indent=2))
 
 

@@ -12,6 +12,7 @@ def test_orders_daily_reads_metadata_and_metrics_and_returns_contract(tmp_path):
     )
 
     assert isinstance(decision, TriageDecision)
+    assert decision.investigation is None
     traces = list(tmp_path.glob("*.json"))
     assert len(traces) == 1
     trace = json.loads(traces[0].read_text(encoding="utf-8"))

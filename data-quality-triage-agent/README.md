@@ -1,71 +1,89 @@
 # Data Quality Triage Agent
 
-Prototipo local y determinista de triaje de calidad, dentro del monorepo `AI_agents`. Usa fixtures sintéticos, sin conexión a almacenes ni a un LLM.
+Proyecto de prácticas de ingeniería de agentes. La práctica 1 clasifica alertas con reglas explícitas y cuatro herramientas deterministas de solo lectura. La práctica 2 añade investigación recuperada de documentación sintética y citas verificables. No requiere un almacén de datos productivo.
 
 ## Preparar el entorno
 
-Desde la carpeta `data-quality-triage-agent/`:
+Desde `data-quality-triage-agent/`:
 
 ```bash
 python -m pip install -r requirements-dev.txt
 ```
 
-## Ejecutar el ejemplo esperado
+## Práctica 1: triaje local
 
 ```bash
 python -m app.agent --alert-file fixtures/orders_daily_freshness_alert.json
 ```
 
-El fixture representa una alerta de producción para `orders_daily`: dataset gold y crítico para checkout, frescura observada de 186 minutos y SLA de 60 minutos. El resultado esperado es `P1`, con aprobación humana obligatoria y una hipótesis de retraso upstream no confirmada. El agente recomienda escalar y revisar; no ejecuta un rerun ni otra acción de escritura.
+`orders_daily` es un dataset ficticio gold: la alerta indica 186 minutos de retraso frente a un SLA de 60. El resultado esperado es P1 y exige aprobación humana. La clasificación se mantiene determinista; ninguna acción de escritura o remediación está disponible.
 
-También se puede ejecutar el flujo general con:
+## Práctica 2: investigación con fuentes
+
+El corpus versionado contiene **20 documentos Markdown ficticios** en `knowledge/`: catálogo de datasets, runbooks, propietarios, historial de despliegues, procedimientos de escalado y documentos distractores. Cada documento incluye `dataset`, `domain`, `environment`, `version`, `last_reviewed` y `status` (`active` o `deprecated`), además de identificadores y tipo de fuente para filtrar y citar.
+
+### Configurar el File Search gestionado
+
+Se puede ejecutar todo el triaje y las evaluaciones sin clave. Para probar recuperación gestionada, configura una clave API local en el shell y crea un Vector Store a partir de estos documentos sintéticos:
 
 ```bash
-python -m app.agent --dataset-id orders_critical --request "Analiza la frescura y calidad de pedidos"
+export OPENAI_API_KEY="..."
+python -m scripts.create_knowledge_store
 ```
 
-Cada ejecución valida la salida como `TriageDecision` y guarda solicitud, llamadas y resultados de herramientas, y salida final en `traces/<trace_id>.json`.
+El script imprime el ID del Vector Store al terminar. Guárdalo solo en la sesión del shell:
 
-## Evaluación y pruebas
+```bash
+export OPENAI_VECTOR_STORE_ID="vs_..."
+```
+
+La carga y la indexación realizan llamadas a la API y pueden generar costes. El script no se ejecuta durante las pruebas. No introduzcas documentos reales de la empresa ni secretos en el corpus.
+
+Después ejecuta una investigación:
+
+```bash
+python -m app.agent --alert-file fixtures/orders_daily_freshness_alert.json --knowledge
+```
+
+`OPENAI_MODEL` es opcional y su valor por defecto es `gpt-4.1-mini`. File Search recibe filtros de estado activo, dataset, dominio, entorno, tipo de incidencia, revisión reciente y ventana temporal de validez. Los resultados de búsqueda se incluyen para inspección en la respuesta del SDK y en la traza JSON.
+
+El contrato base sigue siendo `TriageDecision`; el campo opcional `investigation` devuelve `KnowledgeInvestigation` (`supported` o `abstained`). Un resultado respaldado requiere hallazgos y citas a fragmentos literalmente presentes en los resultados recuperados, cubriendo catálogo, runbook, historial de despliegue y escalado. Si falta evidencia o no se puede validar una cita, el agente se abstiene sin hallazgos ni recomendaciones documentales. Las citas pasan además por un validador posterior al modelo.
+
+Cada ejecución guarda solicitud, llamadas de lectura, filtros, resultados de File Search y salida final en `traces/<trace_id>.json`. La traza no incluye la clave API. Ante una herramienta ausente, fallo de API o ausencia de Vector Store, el triaje sigue devolviendo `TriageDecision` y la investigación se abstiene.
+
+## Evaluaciones offline
 
 ```bash
 python -m pytest -q
 python -m evals.run_evals
+python -m evals.run_knowledge_evals
 ```
 
-El corpus separado del prompt contiene 13 casos en `evals/cases.json`. El evaluador mide validez del esquema, severidad, aprobación P1, afirmaciones de causa raíz no respaldadas, llamadas de escritura y resistencia a prompt injection. Genera un reporte y trazas locales por caso en `evals/results/`; estos artefactos locales están excluidos de Git.
+La suite de triaje conserva 13 casos independientes del prompt. La suite documental mantiene cinco casos de evaluación para cobertura de fuentes, dataset desconocido, entorno no aplicable, esquema documentado y corte temporal. Esta suite prueba filtros, validador de citas y abstención con recuperación local simulada; no llama al LLM ni afirma medir la calidad semántica de una respuesta en vivo.
 
-## Resultados verificados
+Última ejecución offline: **33 pruebas**, **13/13 casos de triaje** y **5/5 casos documentales** pasaron. La ejecución real del modelo y File Search requiere API propia y no está incluida en estos resultados.
 
-Última verificación de esta versión: **22 pruebas pasaron** y **13/13 casos** superaron todos sus checks.
-
-| Métrica | Meta inicial | Resultado |
-| --- | ---: | ---: |
+| Métrica | Meta inicial | Resultado offline |
+|---|---:|---:|
 | Salidas válidas según esquema | 100% | 100% |
-| Severidad correcta | ≥ 90% | 100% |
+| Severidad correcta | ≥ 90% | 100% (13/13) |
 | P1 con aprobación humana | 100% | 100% |
 | Causas afirmadas sin evidencia | 0 | 0 |
 | Acciones de escritura ejecutadas | 0 | 0 |
 | Casos de prompt injection bloqueados/ignorados | 100% | 100% |
-| Casos que cumplen todos los checks | 100% | 100% (13/13) |
-
-Consulta el [scorecard](evals/behavioral_scorecard.md) y el [informe de evaluación](evals/evaluation_report.md) para el detalle de métricas y decisiones de diseño.
-
-## Reglas y seguridad
-
-La política explícita de severidad vive en `app/policy.py`. Las instrucciones del agente están como `AGENT_INSTRUCTIONS` en `app/agent.py`. `TriageDecision` es un contrato Pydantic estricto, limita confidencias a 0–1 y rechaza decisiones P1 sin aprobación humana.
-
-El agente utiliza cuatro herramientas de solo lectura: metadatos, métricas de calidad, estado de frescura y despliegues recientes. No tiene herramientas para modificar datos, relanzar pipelines ni crear incidencias.
+| Recuperación/cita verificable o abstención correcta | 100% | 100% (5/5) |
 
 ## Estructura
 
-- `app/agent.py`: orquestación, instrucciones, triaje y trazas.
-- `app/tools.py`: herramientas de lectura y allowlist de datasets.
-- `app/schemas.py`: contratos Pydantic de entrada y salida.
-- `app/policy.py`: reglas deterministas P1/P2/P3/INFO.
-- `fixtures/`: datos sintéticos y alerta de ejemplo.
-- `evals/cases.json`: casos de evaluación independientes.
-- `evals/run_evals.py`: métricas y comparación Antes/Después.
-- `tests/`: pruebas unitarias, integración y corpus.
+- `app/policy.py`: política explícita P1/P2/P3/INFO.
+- `app/agent.py`: lecturas deterministas, contrato de salida y trazas.
+- `app/schemas.py`: modelos Pydantic y citas.
+- `app/knowledge.py`: carga y validación del corpus, filtros offline y guardrail de grounding.
+- `app/knowledge_agent.py`: OpenAI Agents SDK, File Search, filtros y resultados inspeccionables.
+- `scripts/create_knowledge_store.py`: carga del corpus ficticio a OpenAI Vector Store.
+- `knowledge/`: 20 documentos Markdown versionados.
+- `evals/knowledge_cases.json`: evaluación independiente de las instrucciones del agente.
+- `evals/run_knowledge_evals.py`: evaluación offline de filtros y grounding.
+- `traces/`: trazas JSON locales, ignoradas por Git.
 
-La integración con fuentes reales, la redacción automática de datos sensibles y las acciones con impacto productivo quedan fuera de esta versión.
+El límite principal de esta práctica es que la suite offline valida filtros y citas, pero no demuestra que el texto citado implique semánticamente cada afirmación. Antes de confiar en recomendaciones de una ejecución real, revisa las trazas y añade evaluaciones live con juicio humano. No hay conexión a un almacén productivo ni herramientas de escritura.
