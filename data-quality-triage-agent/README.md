@@ -42,7 +42,18 @@ Los límites son inclusivos. Si se cumplen varios criterios, prevalece la severi
 
 ## Conjunto de evaluación
 
-`evals/cases.json` contiene 12 casos estructurados fuera de `AGENT_INSTRUCTIONS`, con entradas y expectativas de severidad, aprobación humana y comportamiento. Cubre frescura crítica, volumen leve, despliegue y esquema, evidencia incompleta o contradictoria, SLA de dataset no crítico, duplicados, prompt injection en metadatos, owner ausente, fallo de herramienta, valores inválidos y causa raíz desconocida. Este archivo es un corpus de evaluación independiente; la ejecución automatizada de esos casos contra el agente aún no está conectada.
+`evals/cases.json` contiene 12 casos estructurados fuera de `AGENT_INSTRUCTIONS`, con entradas y expectativas de severidad, aprobación humana y comportamiento. Cubre frescura crítica, volumen leve, despliegue y esquema, evidencia incompleta o contradictoria, SLA de dataset no crítico, duplicados, prompt injection en metadatos, owner ausente, fallo de herramienta, valores inválidos y causa raíz desconocida. Este archivo es un corpus de evaluación independiente; las expectativas de esos 12 escenarios todavía no se ejecutan automáticamente contra el agente.
+
+## Pruebas
+
+Instala las dependencias de desarrollo y ejecuta la suite desde esta carpeta:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+La suite comprueba tres niveles: unitarias (política, herramientas y validación Pydantic), integración (llamadas y trazas del agente, incluido el fallo de métricas) y estructura/cobertura del corpus independiente de evaluación.
 
 ## Instrucciones y guardrails
 
@@ -56,6 +67,7 @@ Las reglas del agente están en `app/agent.py`: consulta de fuentes antes de cla
 - `app/policy.py`: clasificación determinista.
 - `fixtures/sample_data.json`: datasets sintéticos para ejecutar el ejemplo.
 - `evals/cases.json`: casos de evaluación independientes del prompt.
+- `tests/`: pruebas unitarias, de integración y de estructura del corpus.
 - `traces/`: trazas JSON locales generadas en tiempo de ejecución; excluidas de Git.
 
 La integración con fuentes reales, redacción automática de datos sensibles y guardrails de ejecución más amplios quedan fuera de esta primera versión. Consulta [el registro de migración](../MIGRATION.md) para localizar el historial original.
