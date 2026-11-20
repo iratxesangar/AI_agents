@@ -116,8 +116,32 @@ def validate_report(report, docs):
         for e in f['evidence']:
             if not e['quote'].strip() or e['source_id'] not in byid or e['quote'] not in byid[e['source_id']]:
                 raise ValueError('Cita no verificable; no se publica el informe')
-    if {c['check'] for c in report['coverage']} != set(CHECKS): raise ValueError('Cobertura incompleta')
+    checks = [item['check'] for item in report['coverage']]
+    if len(checks) != len(CHECKS) or set(checks) != set(CHECKS):
+        raise ValueError('La cobertura debe incluir cada comprobación exactamente una vez')
     return report
+
+def add_evidence_locations(report, docs):
+    """Localiza las citas validadas en el texto extraído, por líneas desde 1."""
+    by_id = {doc['source_id']: doc for doc in docs}
+    for finding in report['findings']:
+        for evidence in finding['evidence']:
+            doc = by_id[evidence['source_id']]
+            text, quote = doc['text'], evidence['quote']
+            occurrences = []
+            start = text.find(quote)
+            while start != -1:
+                occurrences.append({
+                    'line_start': text.count('\n', 0, start) + 1,
+                    'line_end': text.count('\n', 0, start + len(quote) - 1) + 1,
+                })
+                start = text.find(quote, start + 1)
+            evidence['location'] = {
+                'document': doc['name'],
+                'sha256': doc['sha256'],
+                'occurrences': occurrences,
+            }
+
 
 def review(docs, model):
     key=os.environ.get('OPENAI_API_KEY')
@@ -135,6 +159,7 @@ def review(docs, model):
     if result.get('status')!='completed': raise ValueError('Respuesta incompleta; no se publica como revisión terminada')
     content=''.join(c['text'] for o in result['output'] if o.get('type')=='message' for c in o.get('content',[]) if c.get('type')=='output_text')
     report=validate_report(json.loads(content),docs)
+    add_evidence_locations(report, docs)
     report['usage']=result.get('usage'); report['model']=model
     return report
 

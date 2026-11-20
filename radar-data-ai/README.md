@@ -28,3 +28,20 @@ La configuración del manifiesto está vinculada al Site existente. No cambies s
 La base de datos D1 de producción —incluido el historial de ofertas y candidaturas— y la tarea horaria de ChatGPT se mantienen fuera de GitHub. No guardes aquí Excel, exportaciones personales, tokens ni secretos.
 
 El código es una copia de seguridad, no un despliegue independiente. Para ejecutarlo fuera de ChatGPT Sites habría que provisionar alojamiento, una base D1, acceso privado, la conexión MCP y una tarea recurrente nueva.
+
+## Demo de clasificación reproducible
+
+Ejecuta `node --test scripts/score.test.mjs` desde esta carpeta. Los casos
+sintéticos llaman a la herramienta MCP real `score_job_offer` sin base de datos.
+
+| Entrada de ejemplo | Clasificación |
+|---|---|
+| Salario publicado de 52.000 € | Excluir |
+| Salario publicado entre 52.000 € y 60.000 € | Por confirmar |
+| Estimación de 42.000 € a 50.000 € con `salary_published: false` | Por confirmar |
+| Híbrido internacional con tres días en oficina | Excluir |
+| Híbrido internacional sin frecuencia documentada | Por confirmar |
+
+La herramienta clasifica los datos de entrada. La etiqueta `verificada` indica
+que pasan las reglas de clasificación. La fuente, vigencia y condiciones de la
+vacante se comprueban en el proceso de búsqueda.
