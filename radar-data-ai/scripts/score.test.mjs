@@ -69,3 +69,26 @@ test("la página genera JavaScript válido con configuración ausente o privada"
     assert.doesNotThrow(() => new Script(script));
   }
 });
+
+test("el umbral es inclusivo para admisión y exclusivo para prioridad", async () => {
+  for (const [fields, classification, priority] of [
+    [{salary_min_eur: 55000}, "verificada", false],
+    [{salary_min_eur: 55001}, "verificada", true],
+    [{salary_min_eur: 60000, eligible_from_spain: null,
+      eligibility_evidence: "Remote within Europe"}, "por confirmar", false],
+    [{salary_min_eur: 60000, country: "France", remote_mode: "hybrid",
+      office_days_per_week: 2}, "verificada", true],
+    [{salary_min_eur: 60000, vacancy_status: "Cerrada", status: "Rechazado"}, "excluir", false],
+  ]) {
+    const response = await worker.fetch(new Request("https://radar.test/mcp", {
+      method: "POST",
+      body: JSON.stringify({id: 1, method: "tools/call",
+        params: {name: "score_job_offer", arguments: {...base, ...fields}}}),
+    }));
+    const {result} = await response.json();
+    const offer = JSON.parse(result.content[0].text);
+    assert.equal(offer.classification, classification);
+    assert.equal(offer.priority, priority);
+    assert.equal(offer.eligibility_evidence, fields.eligibility_evidence ?? null);
+  }
+});

@@ -61,3 +61,50 @@ todas esas rutas antes de conectar una base con datos reales.
 Configura también `RADAR_PRIVATE_PROFILE` como secreto del Site. Acepta
 `display_name`, `location` y `salary_current_eur`. El nombre se usa para
 el saludo y el perfil privado MCP conserva la ubicación y el salario actual.
+
+## Reglas de búsqueda y prioridad
+
+Los ejemplos suponen una oferta relevante y comprobada en su fuente, salvo
+donde se indique otra cosa. La tarea debe comprobar la vigencia antes de guardar
+y conservar la evidencia de elegibilidad en `eligibility_evidence`. El
+clasificador evalúa las condiciones recibidas y el contador web aplica su misma
+regla de prioridad a las ofertas con datos estructurados.
+
+| Entrada | Salida |
+|---|---|
+| Abierta, remota desde España y 65.000 € publicados | Verificada y prioritaria. |
+| Abierta, relevante y sin sueldo publicado | Se conserva. Salario no confirmado. |
+| Banda publicada de 52.000–60.000 € | Se conserva la banda. Objetivo por confirmar. |
+| Sueldo publicado de 52.000 € | Se excluye de los resultados de búsqueda. |
+| Sueldo publicado de 55.000 € | Alcanza el umbral y se admite. La prioridad exige un mínimo publicado estrictamente superior a 55.000 €. |
+| «Remote within Europe», sin confirmación para España | Elegibilidad pendiente. Se conserva la frase original. |
+| Híbrida en Francia, tres días presenciales | Excluir. |
+| Híbrida en Francia, dos días presenciales y elegibilidad confirmada | Se puede admitir. Conservar ubicación y frecuencia. |
+| Vacante cerrada con candidatura anterior | Excluir de las nuevas y conservar la fila y la candidatura histórica. |
+| La misma vacante reaparece tras un rechazo | Conservar «Rechazado» y la fecha original. Añadir fuentes verificadas. |
+
+### Identidad y demo reproducible
+
+Usa `requisition_source` con el ámbito estable del ATS y la cuenta de empresa,
+y `requisition_id` con el identificador original. Si falta esa pareja, usa una
+URL específica de la vacante. Se eliminan los parámetros de seguimiento
+conocidos y se conservan los funcionales, como `jobId`. Empresa y título
+coincidentes se devuelven como posibles duplicados. Dos IDs distintos se
+mantienen separados. Si no hay identidad comprobable, conserva el `offer_id`
+devuelto para los reintentos y solicita revisión antes de unificar registros.
+
+Los registros históricos conservan su clave y se vinculan si existe una
+coincidencia verificable. Los datos de dos vacantes que ya se hubieran
+fusionado requieren revisar sus fuentes originales.
+
+Con Node.js 22, desde esta carpeta:
+
+```sh
+node --test scripts/identity.test.mjs
+```
+
+La demo utiliza SQLite en memoria, el esquema de `offers` y las rutas MCP.
+Parte de una candidatura rechazada. La primera ejecución crea una vacante y
+deja dos vacantes en total, dos fuentes para la republicada y el rechazo
+intacto. La segunda ejecución crea cero vacantes. `saved_count` cuenta
+operaciones aceptadas, mientras que `created_count` cuenta vacantes nuevas.
