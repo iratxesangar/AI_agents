@@ -61,3 +61,17 @@ Pruebas locales de bloqueo de IP privadas, extracción de texto, rechazo de HTML
 Interfaz de carga, OCR con cobertura por página, conectores autenticados, normalización de eventos y reglas deterministas de fechas, evaluación semántica independiente, supervisión de costes y despliegue. La versión actual usa el modelo para el razonamiento temporal; no incluye aún un motor determinista de calendario.
 
 Documentación API consultada el 29/10/2026: https://developers.openai.com/api/reference/python/resources/responses/methods/create
+
+## Trazabilidad de las citas
+
+En modo API, cada cita literal validada incluye el nombre y SHA-256 del
+documento y todos sus intervalos de líneas en el texto extraído. Por ejemplo,
+si «hotel confirmado» aparece dos veces en el documento citado, el informe
+conserva ambas ubicaciones para que puedas comprobar el contexto. Las líneas
+empiezan en 1 y corresponden al texto extraído.
+
+Ejecuta `python -m unittest discover -s tests` desde esta carpeta para probar
+la localización de citas repetidas, el rechazo de citas inventadas y la
+cobertura de comprobaciones sin duplicados. Las pruebas son locales. La
+validación comprueba la procedencia literal de la cita. La interpretación del
+documento y la validez de la reserva requieren revisión humana.
