@@ -57,3 +57,7 @@ Las bandas configuradas se muestran a quienes tengan acceso al Radar.
 El Worker depende del control de acceso de Sites para la página, la API y MCP.
 Un despliegue independiente necesita aplicar su propio control de acceso a
 todas esas rutas antes de conectar una base con datos reales.
+
+Configura también `RADAR_PRIVATE_PROFILE` como secreto del Site. Acepta
+`display_name`, `location` y `salary_current_eur`. El nombre se usa para
+el saludo y el perfil privado MCP conserva la ubicación y el salario actual.
