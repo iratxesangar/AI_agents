@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RevisaViajes</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/workflow.js" defer></script>
+<script src="/app.js" defer></script>
+</head>
+<body>
+<header><div><span class="mark" aria-hidden="true">✦</span> RevisaViajes</div><span id="connection" role="status">Comprobando conexión…</span></header>
+<main>
+<section class="workspace">
+<h1>Planifica tu viaje</h1>
+<nav aria-label="Etapas del viaje"><ol id="stages">
+<li>Ficha</li><li>Investigar</li><li>Comparar rutas</li><li>Revisar</li><li>Servicios</li><li>Resumen</li>
+</ol></nav>
+<div id="messages" role="log" aria-label="Conversación"></div>
+<section id="next-step" aria-label="Siguiente paso">
+<p id="next-message" aria-live="polite"></p>
+<form id="agent-intake" hidden>
+<label for="agent-answer" id="agent-question"></label>
+<div class="agent-answer"><input id="agent-answer" required maxlength="1200"><button>Enviar</button></div>
+<button type="button" class="secondary" id="skip-intake" hidden>Dejar abierto</button>
+</form>
+<button type="button" id="next-action" hidden></button>
+</section>
+<form id="chat">
+<label for="note">Comentarios para la ruta</label>
+<textarea id="note" maxlength="2500" placeholder="Por ejemplo, quita una parada o añade un día de senderismo"></textarea>
+<div class="actions">
+<button id="adjust" value="ajustar">Ajustar ruta</button>
+<button class="secondary" type="button" id="research">Investigar destino</button>
+<button class="secondary" type="button" id="propose">Proponer ruta</button>
+<button class="secondary" type="button" id="services">Buscar servicios</button>
+<button class="secondary" type="button" id="summary">Ver resumen</button>
+</div>
+</form>
+<details id="service-preferences" hidden>
+<summary>Preferencias para comparar servicios</summary>
+<label>Prioridades <input id="service-criterion" maxlength="1200" placeholder="Precio total, duración, comodidad, ubicación o flexibilidad"></label>
+<label>Requisitos adicionales <textarea id="service-requirements" maxlength="1200" placeholder="Por ejemplo, equipaje, habitaciones o cancelación flexible"></textarea></label>
+</details>
+<form id="service-questions" hidden>
+<h3>Datos que faltan para buscar</h3>
+<div id="service-missing"></div>
+<button>Continuar búsqueda</button>
+</form>
+<p id="status" role="status"></p>
+</section>
+<aside>
+<h2>Ficha del viaje</h2>
+<form id="sheet">
+<label>Destino <input name="destino" placeholder="País, ciudades o destinos que barajas"></label>
+<label>Fechas o duración <input name="fechas" placeholder="2027-05-01 a 2027-05-05, o 5 días y 4 noches"></label>
+<div class="pair"><label>Origen <input name="origen"></label><label>Viajeros <input name="viajeros"></label></div>
+<div class="pair"><label>Llegada conocida <input name="llegada"></label><label>Salida conocida <input name="salida"></label></div>
+<label>Ritmo de viaje <input name="ritmo" placeholder="Tranquilo, equilibrado o intenso"></label>
+<label>Presupuesto aproximado <input name="presupuesto"></label>
+<label>Preferencias flexibles <textarea name="preferencias"></textarea></label>
+</form>
+<label>Supuestos pendientes <textarea id="assumptions"></textarea></label>
+<label>Preguntas pendientes <textarea id="questions"></textarea></label>
+<div class="route">
+<h2>Ruta <small id="version"></small></h2>
+<label for="route">Paradas, noches, actividades e incertidumbres</label>
+<textarea id="route" rows="6" maxlength="14000"></textarea>
+<div class="actions"><button type="button" id="save">Guardar versión</button><button type="button" class="secondary" id="accept">Aceptar versión</button></div>
+<section class="review" id="review" hidden>
+<h3>Revisión de la ruta elegida</h3>
+<p id="route-summary"></p>
+<div id="review-items"></div>
+</section>
+<p id="decision"></p>
+<p class="acceptance-note">Aceptar esta versión habilita la comparación de servicios. No implica una reserva ni garantiza disponibilidad.</p>
+<details id="history" hidden><summary>Versiones aceptadas</summary><div id="accepted-routes"></div></details>
+</div>
+</aside>
+</main>
+</body>
+</html>

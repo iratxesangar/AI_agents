@@ -6,6 +6,10 @@ Empieza por [LOCAL.md](LOCAL.md): revisión determinista sin clave, sin red ni c
 
 Revisor documental por lotes. Python 3.11+. Ejecuta automáticamente descarga/lectura, extracción, revisión IA, verificación literal de citas y exportación JSON/HTML. No es un agente desplegado ni un servicio en segundo plano.
 
+## Planificador web local
+
+El [planificador web](planificador-web/README.md) guía la ficha, la investigación, la comparación de rutas, la revisión y la búsqueda de servicios para la versión aceptada. Desde la raíz del repositorio, ejecuta `python3 revisaviajes/planificador-web/app.py` y abre [127.0.0.1:8765](http://127.0.0.1:8765). Gemini y Tavily son opcionales para el modo automático.
+
 ## Instalación
 
 ```bash
