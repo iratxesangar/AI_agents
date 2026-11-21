@@ -45,3 +45,15 @@ sintéticos llaman a la herramienta MCP real `score_job_offer` sin base de datos
 La herramienta clasifica los datos de entrada. La etiqueta `verificada` indica
 que pasan las reglas de clasificación. La fuente, vigencia y condiciones de la
 vacante se comprueban en el proceso de búsqueda.
+
+### Configuración privada y acceso
+
+Configura `RADAR_SALARY_BANDS` como variable privada del Site si necesitas
+bandas salariales por familia. Acepta un objeto JSON que mapea el nombre exacto
+de cada familia a `[mínimo, máximo]` en euros brutos anuales. Sin la variable,
+el Radar mantiene el umbral general y omite la comparación por familia.
+Las bandas configuradas se muestran a quienes tengan acceso al Radar.
+
+El Worker depende del control de acceso de Sites para la página, la API y MCP.
+Un despliegue independiente necesita aplicar su propio control de acceso a
+todas esas rutas antes de conectar una base con datos reales.
