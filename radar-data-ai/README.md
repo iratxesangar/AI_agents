@@ -1,110 +1,77 @@
-# Código del Radar Data & AI
+# Radar Data & AI
 
-Esta carpeta contiene la copia del código fuente del Site privado activo, versión 6, capturada del commit `48cb07d7a779006c9eb07ed7c3e1ef47a6951b1d`.
+Radar de vacantes con directorio de empresas, registro de búsquedas, revisión
+de enlaces, seguimiento de candidaturas y ranking. El Worker comparte la
+lógica de identidad y persistencia entre la web y MCP.
 
-## Archivos
-
-- `worker/index.js`: interfaz web, API y herramientas MCP de búsqueda, puntuación, deduplicación e historial.
-- `.openai/hosting.json`: identificador del Site, binding D1 y capacidad MCP.
-- `drizzle/0000_offer_history.sql` y `drizzle/meta/_journal.json`: esquema y migración de la tabla de ofertas.
-- `scripts/build.sh` y `scripts/validate-artifact.mjs`: generación y validación del artefacto del Worker.
-- `package.json`: comandos disponibles.
-
-## Desarrollo
-
-Modifica `worker/index.js`. Para generar y validar localmente desde esta carpeta:
+El repositorio usa un manifiesto local sin identificadores de producción.
+La instancia alojada tiene su propio manifiesto, control de acceso, base de
+datos y variables privadas. `RADAR_PRIVATE_PROFILE` configura el perfil y
+`RADAR_SALARY_BANDS` las bandas por familia. Las pruebas usan exclusivamente
+datos ficticios. Para ejecutarlas, usa Node.js 22 o posterior:
 
 ```sh
+node --test tests/*.mjs
+node scripts/demo-radar.mjs
 npm run build
 npm run validate
 ```
 
-El panel incluye las ofertas persistidas aunque no tengan el campo interno `type`, calcula pendientes desde el estado y los datos salariales, y reconoce candidaturas rechazadas como registros de solicitud.
+## Revisar el histórico de vacantes
 
-La configuración del manifiesto está vinculada al Site existente. No cambies su `project_id` para trabajar en la copia actual.
+Genera una copia SQLite de la base antes de revisar registros históricos. Con
+Node.js 22 o posterior, ejecuta `node scripts/audit-history.mjs copia.sqlite`.
+La auditoría es de solo lectura y señala coincidencias dudosas y filas
+antiguas cuyas fuentes requieren revisión. La identidad de una fila previamente
+consolidada solo puede reconstruirse con evidencia de sus fichas originales.
 
-## Qué no está en esta carpeta
+En Resultados, «Coincidencias para revisar» muestra los motivos y enlaces.
+Confirmar una coincidencia conserva el identificador de la candidatura cuando
+existe, reúne las fuentes y archiva la segunda fila con su identificador.
+Las requisiciones incompatibles y los historiales de candidatura en conflicto
+bloquean la unión. La auditoría de una copia no cambia el histórico publicado.
 
-La base de datos D1 de producción —incluido el historial de ofertas y candidaturas— y la tarea horaria de ChatGPT se mantienen fuera de GitHub. No guardes aquí Excel, exportaciones personales, tokens ni secretos.
+Ejecuta `node --test tests/*.mjs` para probar la deduplicación, la confirmación
+manual, la reapertura, el histórico legado y los reintentos.
 
-El código es una copia de seguridad, no un despliegue independiente. Para ejecutarlo fuera de ChatGPT Sites habría que provisionar alojamiento, una base D1, acceso privado, la conexión MCP y una tarea recurrente nueva.
+## Demo reproducible del Radar
 
-## Demo de clasificación reproducible
+Con Node.js 22 o posterior, ejecuta `node scripts/demo-radar.mjs`. El script
+llama al Worker por sus rutas HTTP y MCP y usa dos bases SQLite en memoria.
+Funciona sin credenciales, acceso a portales ni conexión al Radar publicado.
 
-Ejecuta `node --test scripts/score.test.mjs` desde esta carpeta. Los casos
-sintéticos llaman a la herramienta MCP real `score_job_offer` sin base de datos.
+### Entrada y resultados
 
-| Entrada de ejemplo | Clasificación |
-|---|---|
-| Salario publicado de 52.000 € | Excluir |
-| Salario publicado entre 52.000 € y 60.000 € | Por confirmar |
-| Estimación de 42.000 € a 50.000 € con `salary_published: false` | Por confirmar |
-| Híbrido internacional con tres días en oficina | Excluir |
-| Híbrido internacional sin frecuencia documentada | Por confirmar |
+La prueba copia una vacante histórica con candidatura rechazada y su fecha
+original. El lote contiene esa vacante, su republicación en otro portal con
+la misma requisición, doce vacantes homónimas con requisiciones distintas y
+una vacante con evidencia insuficiente. Una de las escrituras falla a propósito.
 
-La herramienta clasifica los datos de entrada. La etiqueta `verificada` indica
-que pasan las reglas de clasificación. La fuente, vigencia y condiciones de la
-vacante se comprueban en el proceso de búsqueda.
+| Etapa | Nuevas | Actualizadas | Errores |
+| --- | ---: | ---: | ---: |
+| Primera ejecución | 11 | 1 | 1 |
+| Primera ejecución después de reintentar solo el guardado | 12 | 1 | 0 |
+| Segunda ejecución con el mismo lote | 0 | 13 | 0 |
 
-### Configuración privada y acceso
+Al cargar la copia histórica se mantiene el recuento de **1 vacante y 1
+candidatura**. Al terminar hay **13 vacantes y 1 candidatura**. El total de
+la base coincide con las 12 altas confirmadas más la vacante original.
+La republicación suma una fuente y cuenta como un duplicado del lote.
+Las requisiciones distintas conservan su propia fila. El rechazo y su fecha
+sobreviven al ciclo programado y a la reimportación. La vacante con salario,
+modalidad y elegibilidad sin confirmar queda pendiente.
 
-Configura `RADAR_SALARY_BANDS` como variable privada del Site si necesitas
-bandas salariales por familia. Acepta un objeto JSON que mapea el nombre exacto
-de cada familia a `[mínimo, máximo]` en euros brutos anuales. Sin la variable,
-el Radar mantiene el umbral general y omite la comparación por familia.
-Las bandas configuradas se muestran a quienes tengan acceso al Radar.
+Para evaluar el ranking, la prueba etiqueta tres vacantes ficticias como
+prioritarias. Dos aparecen entre las diez primeras (**20 % del top 10** y
+**2 de las 3 prioritarias recuperadas**). Las etiquetas son una referencia
+sintética para comprobar el cálculo. Los pesos siguen pendientes de una
+comparación con preferencias reales.
 
-El Worker depende del control de acceso de Sites para la página, la API y MCP.
-Un despliegue independiente necesita aplicar su propio control de acceso a
-todas esas rutas antes de conectar una base con datos reales.
+### Prueba de interfaz
 
-Configura también `RADAR_PRIVATE_PROFILE` como secreto del Site. Acepta
-`display_name`, `location` y `salary_current_eur`. El nombre se usa para
-el saludo y el perfil privado MCP conserva la ubicación y el salario actual.
-
-## Reglas de búsqueda y prioridad
-
-Los ejemplos suponen una oferta relevante y comprobada en su fuente, salvo
-donde se indique otra cosa. La tarea debe comprobar la vigencia antes de guardar
-y conservar la evidencia de elegibilidad en `eligibility_evidence`. El
-clasificador evalúa las condiciones recibidas y el contador web aplica su misma
-regla de prioridad a las ofertas con datos estructurados.
-
-| Entrada | Salida |
-|---|---|
-| Abierta, remota desde España y 65.000 € publicados | Verificada y prioritaria. |
-| Abierta, relevante y sin sueldo publicado | Se conserva. Salario no confirmado. |
-| Banda publicada de 52.000–60.000 € | Se conserva la banda. Objetivo por confirmar. |
-| Sueldo publicado de 52.000 € | Se excluye de los resultados de búsqueda. |
-| Sueldo publicado de 55.000 € | Alcanza el umbral y se admite. La prioridad exige un mínimo publicado estrictamente superior a 55.000 €. |
-| «Remote within Europe», sin confirmación para España | Elegibilidad pendiente. Se conserva la frase original. |
-| Híbrida en Francia, tres días presenciales | Excluir. |
-| Híbrida en Francia, dos días presenciales y elegibilidad confirmada | Se puede admitir. Conservar ubicación y frecuencia. |
-| Vacante cerrada con candidatura anterior | Excluir de las nuevas y conservar la fila y la candidatura histórica. |
-| La misma vacante reaparece tras un rechazo | Conservar «Rechazado» y la fecha original. Añadir fuentes verificadas. |
-
-### Identidad y demo reproducible
-
-Usa `requisition_source` con el ámbito estable del ATS y la cuenta de empresa,
-y `requisition_id` con el identificador original. Si falta esa pareja, usa una
-URL específica de la vacante. Se eliminan los parámetros de seguimiento
-conocidos y se conservan los funcionales, como `jobId`. Empresa y título
-coincidentes se devuelven como posibles duplicados. Dos IDs distintos se
-mantienen separados. Si no hay identidad comprobable, conserva el `offer_id`
-devuelto para los reintentos y solicita revisión antes de unificar registros.
-
-Los registros históricos conservan su clave y se vinculan si existe una
-coincidencia verificable. Los datos de dos vacantes que ya se hubieran
-fusionado requieren revisar sus fuentes originales.
-
-Con Node.js 22, desde esta carpeta:
-
-```sh
-node --test scripts/identity.test.mjs
-```
-
-La demo utiliza SQLite en memoria, el esquema de `offers` y las rutas MCP.
-Parte de una candidatura rechazada. La primera ejecución crea una vacante y
-deja dos vacantes en total, dos fuentes para la republicada y el rechazo
-intacto. La segunda ejecución crea cero vacantes. `saved_count` cuenta
-operaciones aceptadas, mientras que `created_count` cuenta vacantes nuevas.
+Con `jsdom` accesible para Node, ejecuta `node scripts/demo-radar.mjs --dom`.
+La opción carga el HTML y ejecuta el JavaScript de la página contra el mismo
+Worker de prueba. Comprueba ranking, edición de candidatura, persistencia
+al recargar, directorio de Empresas y enlaces pendientes. La simulación del
+DOM cubre la interacción y el transporte HTTP del Worker. El diseño visual
+en un navegador real se comprueba por separado.
